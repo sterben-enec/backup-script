@@ -1,15 +1,11 @@
-<div align="center">
-
 # Universal Backup & Restore
 
-**Один скрипт для бэкапа нескольких проектов на VPS**
+Один скрипт для бэкапа нескольких проектов на VPS
 
 PostgreSQL / MySQL / MongoDB | Docker / External DB | S3 / Telegram / Google Drive
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Shell](https://img.shields.io/badge/Shell-Bash%204%2B-green.svg)](#требования)
-
-</div>
 
 ---
 
@@ -40,19 +36,17 @@ curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backu
 
 ## Что умеет
 
-| | Поддержка |
-|---|---|
-| **Проекты** | Несколько независимых профилей, переключение/добавление/удаление из меню |
-| **Базы данных** | PostgreSQL, MySQL / MariaDB, MongoDB |
-| **Подключение к БД** | Docker-контейнер или внешний хост |
-| **Что бэкапится** | Дамп БД + `.env` + директория проекта (каждый пункт опционален) |
-| **Хранилища** | S3-совместимые (AWS, Yandex, Timeweb, MinIO и др.), Telegram, Google Drive |
-| **Уведомления** | Telegram — статус каждого бэкапа / восстановления |
-| **Автоматизация** | Встроенное управление cron (ежечасно / ежедневно / произвольное время) |
-| **Ротация** | Автоудаление старых бэкапов локально и в S3 |
-| **Восстановление** | Интерактивный выбор из локальных файлов или S3 |
-| **Языки** | Русский, English |
-| **Обновление** | Самообновление из GitHub через меню |
+- **Проекты**: Несколько независимых профилей, переключение/добавление/удаление из меню
+- **Базы данных**: PostgreSQL, MySQL / MariaDB, MongoDB
+- **Подключение к БД**: Docker-контейнер или внешний хост
+- **Что бэкапится**: Дамп БД + `.env` + директория проекта (каждый пункт опционален)
+- **Хранилища**: S3-совместимые (AWS, Yandex, Timeweb, MinIO и др.), Telegram, Google Drive
+- **Уведомления**: Telegram — статус каждого бэкапа / восстановления
+- **Автоматизация**: Встроенное управление cron (ежечасно / ежедневно / произвольное время)
+- **Ротация**: Автоудаление старых бэкапов локально и в S3
+- **Восстановление**: Интерактивный выбор из локальных файлов или S3
+- **Языки**: Русский, English
+- **Обновление**: Самообновление из GitHub через меню
 
 ---
 
@@ -99,13 +93,11 @@ backrest --config /opt/universal-backup/config/backup.cfg
 
 ## Требования
 
-| Инструмент | Нужен | Для чего |
-|---|:---:|---|
-| `bash` >= 4 | **да** | Выполнение скрипта |
-| `tar`, `gzip`, `curl` | **да** | Архивирование, API-запросы |
-| `docker` | при Docker-БД | Дамп / восстановление из контейнера |
-| `aws` CLI | при S3 | Устанавливается автоматически |
-| `pg_dump` / `mysqldump` / `mongodump` | при внешней БД | Дамп без Docker |
+- `bash >= 4`: обязательно, выполнение скрипта
+- `tar`, `gzip`, `curl`: обязательно, архивирование и API-запросы
+- `docker`: нужен при Docker-БД
+- `aws` CLI: нужен при S3, устанавливается автоматически
+- `pg_dump` / `mysqldump` / `mongodump`: нужны при внешней БД
 
 ---
 
@@ -129,14 +121,12 @@ myproject_2026-04-17_03-00-00.tar.gz
 
 Работает с любым S3-совместимым хранилищем:
 
-| Параметр | Пример |
-|---|---|
-| Endpoint URL | `https://s3.timeweb.cloud` |
-| Region | `ru-1` |
-| Bucket | `my-backups` |
-| Access Key | `AKID...` |
-| Secret Key | `...` |
-| Prefix | `myproject/` (опционально) |
+- Endpoint URL: `https://s3.timeweb.cloud`
+- Region: `ru-1`
+- Bucket: `my-backups`
+- Access Key: `AKID...`
+- Secret Key: `...`
+- Prefix: `myproject/` (опционально)
 
 Для AWS S3 endpoint можно оставить пустым.
 
@@ -156,10 +146,8 @@ myproject_2026-04-17_03-00-00.tar.gz
 
 Настройка через меню `Настройка расписания` (требует root).
 
-| Вариант | Расписание |
-|---|---|
-| Ежечасно | `0 * * * *` |
-| Ежедневно | Одно или несколько времён UTC |
+- Ежечасно: `0 * * * *`
+- Ежедневно: одно или несколько времён UTC
 
 Скрипт создаёт cron-записи с привязкой к активному проекту:
 
@@ -199,8 +187,7 @@ backrest restore
 
 Права на файлы конфигурации — `600`.
 
-<details>
-<summary>Пример глобального конфига (<code>config/backup.cfg</code>)</summary>
+Пример глобального конфига (`config/backup.cfg`):
 
 ```bash
 CFG_VERSION=1.0.0
@@ -215,10 +202,7 @@ CFG_THREAD_ID=''
 CFG_TG_PROXY=''
 ```
 
-</details>
-
-<details>
-<summary>Пример профиля проекта (<code>config/projects/support.cfg</code>)</summary>
+Пример профиля проекта (`config/projects/support.cfg`):
 
 ```bash
 CFG_PROJECT_NAME=support
@@ -241,8 +225,6 @@ CFG_S3_BUCKET=my-backups
 CFG_S3_PREFIX=support/
 CFG_S3_RETENTION_DAYS=30
 ```
-
-</details>
 
 ---
 
