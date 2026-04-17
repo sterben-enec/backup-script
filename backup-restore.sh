@@ -7,10 +7,12 @@
 # Лицензия: MIT
 #
 # Использование:
-#   ./backup.sh              — интерактивное меню
-#   ./backup.sh backup       — создать бэкап немедленно (для cron)
-#   ./backup.sh restore      — восстановление
-#   ./backup.sh --config /path/to/config.cfg
+#   ./backup-restore.sh              — интерактивное меню
+#   ./backup-restore.sh backup       — создать бэкап немедленно (для cron)
+#   ./backup-restore.sh restore      — восстановление
+#   ./backup-restore.sh --config /path/to/config.cfg
+#
+# GitHub: https://github.com/sterben-enec/backup-script
 #
 set -euo pipefail
 
@@ -3108,8 +3110,8 @@ _cron_disable() {
 ###############################################################################
 # Проверка обновлений и самообновление скрипта
 
-GITHUB_RAW_URL="https://raw.githubusercontent.com/YOUR_USERNAME/universal-backup/main/backup-restore.sh"
-GITHUB_API_URL="https://api.github.com/repos/YOUR_USERNAME/universal-backup/releases/latest"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/sterben-enec/backup-script/main/backup-restore.sh"
+GITHUB_API_URL="https://api.github.com/repos/sterben-enec/backup-script/releases/latest"
 
 # ─────────────────────────────────────────────
 # Проверить и применить обновление

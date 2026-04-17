@@ -1,203 +1,203 @@
+<div align="center">
+
 # Universal Backup & Restore
 
-Универсальный bash-скрипт для резервного копирования проектов на VPS.
+**Один скрипт для бэкапа любого проекта на VPS**
 
-Поддерживает любые БД в Docker или внешние, любое S3-совместимое хранилище, Google Drive и Telegram. Каждый источник и каждый способ отправки можно включить или отключить независимо.
+PostgreSQL / MySQL / MongoDB | Docker / External DB | S3 / Telegram / Google Drive
 
-## Возможности
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Shell](https://img.shields.io/badge/Shell-Bash%204%2B-green.svg)](#требования)
 
-- **БД:** PostgreSQL, MySQL / MariaDB, MongoDB
-- **Тип подключения:** Docker-контейнер или внешняя БД
-- **Что бэкапится:** дамп БД + `.env` файл + директория проекта (каждый пункт опционален)
-- **Хранилища:** Telegram, S3-совместимые (AWS, Yandex, Timeweb, MinIO и др.), Google Drive
-- **Уведомления:** Telegram — статус после каждого бэкапа и восстановления
-- **Автоматизация:** встроенное управление cron-расписанием
-- **Ротация:** удаление старых бэкапов локально и в S3
-- **Восстановление:** интерактивный выбор из локальных файлов или S3
-- **Языки:** русский и английский
+</div>
 
-## Требования
-
-| Инструмент | Обязателен | Назначение |
-|---|---|---|
-| `bash` ≥ 4 | да | выполнение скрипта |
-| `tar`, `gzip` | да | архивирование |
-| `curl` | да | Telegram API, Google Drive API |
-| `docker` | при использовании Docker-БД | дамп/восстановление из контейнера |
-| `aws` (AWS CLI) | при использовании S3 | загрузка в S3 |
-| `pg_dump` / `mysqldump` / `mongodump` | при использовании внешней БД | дамп без Docker |
-
-AWS CLI устанавливается автоматически при первом выборе S3 (если есть root).
+---
 
 ## Установка
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/universal-backup.git
-cd universal-backup
-chmod +x backup.sh
-./backup.sh
+curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backup-script/main/backup-restore.sh \
+  && chmod +x ~/backup-restore.sh \
+  && ~/backup-restore.sh
 ```
 
-При первом запуске откроется wizard — он запросит имя проекта, путь к директории, данные БД, способ отправки и Telegram (опционально). Конфиг сохраняется в `backup.cfg` рядом со скриптом.
+При первом запуске откроется мастер настройки — язык, Telegram, проект, БД, способ отправки. Конфиг сохраняется в `backup.cfg` рядом со скриптом.
 
-При наличии прав root создаётся симлинк `/usr/local/bin/backup` для быстрого запуска из любого места.
+---
+
+## Что умеет
+
+| | Поддержка |
+|---|---|
+| **Базы данных** | PostgreSQL, MySQL / MariaDB, MongoDB |
+| **Подключение к БД** | Docker-контейнер или внешний хост |
+| **Что бэкапится** | Дамп БД + `.env` + директория проекта (каждый пункт опционален) |
+| **Хранилища** | S3-совместимые (AWS, Yandex, Timeweb, MinIO и др.), Telegram, Google Drive |
+| **Уведомления** | Telegram — статус каждого бэкапа / восстановления |
+| **Автоматизация** | Встроенное управление cron (ежечасно / ежедневно / произвольное время) |
+| **Ротация** | Автоудаление старых бэкапов локально и в S3 |
+| **Восстановление** | Интерактивный выбор из локальных файлов или S3 |
+| **Языки** | Русский, English |
+| **Обновление** | Самообновление из GitHub через меню |
+
+---
 
 ## Использование
 
 ```bash
 # Интерактивное меню
-./backup.sh
+~/backup-restore.sh
 
-# Создать бэкап немедленно (для cron, без меню)
-./backup.sh backup
+# Создать бэкап (для cron, без меню)
+~/backup-restore.sh backup
 
 # Восстановление
-./backup.sh restore
+~/backup-restore.sh restore
 
-# Указать другой конфиг-файл
-./backup.sh --config /opt/myproject/backup.cfg
+# Указать другой конфиг
+~/backup-restore.sh --config /opt/myproject/backup.cfg
 ```
+
+> При наличии прав root создаётся симлинк `/usr/local/bin/backup` — запуск из любого места командой `backup`.
+
+---
+
+## Требования
+
+| Инструмент | Нужен | Для чего |
+|---|:---:|---|
+| `bash` >= 4 | **да** | Выполнение скрипта |
+| `tar`, `gzip`, `curl` | **да** | Архивирование, API-запросы |
+| `docker` | при Docker-БД | Дамп / восстановление из контейнера |
+| `aws` CLI | при S3 | Устанавливается автоматически |
+| `pg_dump` / `mysqldump` / `mongodump` | при внешней БД | Дамп без Docker |
+
+---
 
 ## Структура бэкапа
 
-Каждый бэкап — это единый `.tar.gz` архив с именем вида:
+Каждый бэкап — `.tar.gz` архив:
 
 ```
 myproject_2026-04-17_03-00-00.tar.gz
+├── backup_meta.json       # метаданные (проект, версия, timestamp)
+├── db_dump.dump           # PostgreSQL (.sql для MySQL, .archive для MongoDB)
+├── .env                   # переменные окружения
+└── project_dir.tar.gz     # архив директории проекта
 ```
 
-Внутри архива:
+Любой компонент может отсутствовать в зависимости от настроек.
 
-```
-backup_meta.json      — метаданные (проект, версия, timestamp, что включено)
-db_dump.dump          — дамп PostgreSQL (или .sql для MySQL, .archive для MongoDB)
-.env                  — файл переменных окружения
-project_dir.tar.gz    — архив директории проекта
-```
-
-Любой из компонентов может отсутствовать — в зависимости от настроек.
+---
 
 ## Настройка S3
 
-Работает с любым S3-совместимым хранилищем. При настройке потребуется:
+Работает с любым S3-совместимым хранилищем:
 
 | Параметр | Пример |
 |---|---|
 | Endpoint URL | `https://s3.timeweb.cloud` |
 | Region | `ru-1` |
 | Bucket | `my-backups` |
-| Access Key | `...` |
+| Access Key | `AKID...` |
 | Secret Key | `...` |
-| Prefix (опционально) | `myproject/` |
+| Prefix | `myproject/` (опционально) |
 
 Для AWS S3 endpoint можно оставить пустым.
+
+---
 
 ## Настройка Google Drive
 
 1. Создать проект в [Google Cloud Console](https://console.cloud.google.com/)
-2. Включить Google Drive API
-3. Создать OAuth 2.0 credentials (тип: Desktop app)
-4. Скопировать Client ID и Client Secret
-5. Вставить в wizard или меню настроек — скрипт откроет ссылку для авторизации и сохранит Refresh Token
+2. Включить **Google Drive API**
+3. Создать **OAuth 2.0 credentials** (тип: Desktop app)
+4. Вставить Client ID и Client Secret в мастер настройки
+5. Перейти по ссылке в браузере, авторизоваться, вставить код — Refresh Token сохранится автоматически
 
-## Автоматический бэкап (cron)
+---
 
-Настройка через меню `Настройка расписания`. Требует root.
+## Автоматический бэкап
 
-Доступные варианты:
-- **Ежечасно** — каждый час в 00 минут
-- **Ежедневно** — одно или несколько конкретных времён (UTC)
+Настройка через меню `Настройка расписания` (требует root).
 
-Пример crontab-записи для бэкапа в 03:00 UTC:
+| Вариант | Расписание |
+|---|---|
+| Ежечасно | `0 * * * *` |
+| Ежедневно | Одно или несколько времён UTC |
+
+Пример для бэкапа в 03:00 и 15:00 UTC:
 
 ```
-0 3 * * * /opt/universal-backup/backup.sh backup
+0 3 * * * /root/backup-restore.sh backup
+0 15 * * * /root/backup-restore.sh backup
 ```
+
+---
 
 ## Восстановление
 
 ```bash
-./backup.sh restore
+~/backup-restore.sh restore
 ```
-
-Или через меню → `Восстановление из бэкапа`.
 
 Источники:
-- **Локальные файлы** — из директории `CFG_BACKUP_DIR`
-- **S3** — скачивает выбранный архив и разворачивает
+- **Локальные файлы** — из директории бэкапов
+- **S3** — скачивает выбранный архив
 
-При восстановлении скрипт интерактивно спрашивает:
-- Восстанавливать ли БД, и в какой контейнер / на какой хост
-- Восстанавливать ли `.env`, и по какому пути
-- Восстанавливать ли директорию проекта
+При восстановлении скрипт интерактивно спрашивает что восстанавливать: БД, `.env`, директорию проекта — каждый пункт отдельно, с выбором пути.
 
-## Конфиг-файл
+---
 
-Файл `backup.cfg` хранит все настройки в формате bash-переменных. Создаётся wizard'ом, редактируется через меню или вручную.
+## Конфигурация
 
-Права на файл автоматически выставляются `600`.
+Файл `backup.cfg` создаётся мастером, редактируется через меню или вручную. Права `600`.
 
-Основные переменные:
+<details>
+<summary>Пример конфигурации</summary>
 
 ```bash
-CFG_PROJECT_NAME="myproject"
-CFG_PROJECT_DIR="/opt/myproject"
-CFG_PROJECT_ENV="/opt/myproject/.env"
-CFG_BACKUP_DIR="/var/backups/universal-backup"
-CFG_RETENTION_DAYS="30"
+CFG_PROJECT_NAME=myproject
+CFG_PROJECT_DIR=/opt/myproject
+CFG_PROJECT_ENV=/opt/myproject/.env
+CFG_BACKUP_DIR=/var/backups/universal-backup
+CFG_RETENTION_DAYS=30
 
-CFG_DB_TYPE="docker"          # none | docker | external
-CFG_DB_ENGINE="postgres"      # postgres | mysql | mongodb
-CFG_DB_CONTAINER="myproject_db"
-CFG_DB_USER="postgres"
-CFG_DB_NAME="myproject"
+CFG_DB_TYPE=docker          # none | docker | external
+CFG_DB_ENGINE=postgres      # postgres | mysql | mongodb
+CFG_DB_CONTAINER=myproject_db
+CFG_DB_USER=postgres
+CFG_DB_NAME=myproject
 
-CFG_UPLOAD_METHOD="s3"        # telegram | s3 | google_drive
+CFG_UPLOAD_METHOD=s3        # telegram | s3 | google_drive
 
-CFG_S3_ENDPOINT="https://s3.timeweb.cloud"
-CFG_S3_BUCKET="my-backups"
-CFG_S3_PREFIX="myproject/"
-CFG_S3_RETENTION_DAYS="30"
+CFG_S3_ENDPOINT=https://s3.timeweb.cloud
+CFG_S3_BUCKET=my-backups
+CFG_S3_PREFIX=myproject/
+CFG_S3_RETENTION_DAYS=30
 
-CFG_BOT_TOKEN="..."
-CFG_CHAT_ID="..."
+CFG_BOT_TOKEN=123456:ABC...
+CFG_CHAT_ID=-100...
 ```
 
-## Структура файлов
+</details>
 
-```
-backup.sh               — точка входа
-backup.cfg              — конфиг (создаётся при первом запуске)
-modules/
-  utils.sh              — логирование, цвета, helpers
-  config.sh             — загрузка/сохранение конфига, wizard
-  telegram.sh           — Telegram Bot API
-  s3.sh                 — AWS CLI: upload, download, cleanup
-  google_drive.sh       — Google Drive OAuth2 + upload
-  db.sh                 — дамп/восстановление БД
-  backup.sh             — логика создания архива
-  restore.sh            — интерактивное восстановление
-  cron.sh               — управление расписанием
-  update.sh             — самообновление скрипта
-  settings.sh           — меню настроек
-translations/
-  en.sh
-  ru.sh
-```
+---
 
 ## Обновление
 
-Через меню → `Обновление скрипта`. Требует root.
+Через меню → **Обновление скрипта** (требует root).
 
-Скрипт сравнивает версии, предлагает обновиться, создаёт резервную копию текущего скрипта и заменяет его. При ошибке автоматически восстанавливает предыдущую версию.
+Скрипт проверяет версию на GitHub, предлагает обновиться, создаёт резервную копию текущего файла и заменяет его. При ошибке автоматически откатывается.
 
-Для подключения автообновления к своему репозиторию замените в `modules/update.sh`:
+---
 
-```bash
-GITHUB_RAW_URL="https://raw.githubusercontent.com/YOUR_USERNAME/universal-backup/main/backup.sh"
-GITHUB_API_URL="https://api.github.com/repos/YOUR_USERNAME/universal-backup/releases/latest"
-```
+## Вдохновлено
+
+[distillium/remnawave-backup-restore](https://github.com/distillium/remnawave-backup-restore) — отличный скрипт для Remnawave. Universal Backup — это его идея, расширенная до универсального инструмента для любого проекта.
+
+---
 
 ## Лицензия
 
-MIT
+[MIT](LICENSE)

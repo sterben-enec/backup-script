@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Проверка обновлений и самообновление скрипта
 
-GITHUB_RAW_URL="https://raw.githubusercontent.com/YOUR_USERNAME/universal-backup/main/backup.sh"
-GITHUB_API_URL="https://api.github.com/repos/YOUR_USERNAME/universal-backup/releases/latest"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/sterben-enec/backup-script/main/backup-restore.sh"
+GITHUB_API_URL="https://api.github.com/repos/sterben-enec/backup-script/releases/latest"
 
 # ─────────────────────────────────────────────
 # Проверить и применить обновление
