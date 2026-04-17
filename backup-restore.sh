@@ -1954,7 +1954,9 @@ setup_db_wizard() {
             read -rsp "${L[cfg_enter_db_pass]}" CFG_DB_PASS; echo ""
             if [[ "$CFG_DB_ENGINE" == "postgres" ]]; then
                 read -rp "${L[cfg_db_pgver]}" CFG_DB_PGVER
-                [[ -z "$CFG_DB_PGVER" ]] && CFG_DB_PGVER="17"
+                if [[ -z "$CFG_DB_PGVER" ]]; then
+                    CFG_DB_PGVER="17"
+                fi
             fi
             ;;
         2)
@@ -1973,7 +1975,9 @@ setup_db_wizard() {
                 read -rp "${L[cfg_db_ssl]}" CFG_DB_SSL
                 [[ -z "$CFG_DB_SSL" ]] && CFG_DB_SSL="prefer"
                 read -rp "${L[cfg_db_pgver]}" CFG_DB_PGVER
-                [[ -z "$CFG_DB_PGVER" ]] && CFG_DB_PGVER="17"
+                if [[ -z "$CFG_DB_PGVER" ]]; then
+                    CFG_DB_PGVER="17"
+                fi
             fi
             ;;
         *)
@@ -2477,6 +2481,14 @@ db_dump() {
 _db_dump_docker() {
     local output_file="$1"
     check_docker || return 1
+    if [[ -z "${CFG_DB_CONTAINER:-}" ]]; then
+        log_error "Не задано имя Docker-контейнера с БД."
+        return 1
+    fi
+    if ! docker container inspect "$CFG_DB_CONTAINER" &>/dev/null; then
+        log_error "Docker-контейнер не найден: ${CFG_DB_CONTAINER}"
+        return 1
+    fi
 
     case "$CFG_DB_ENGINE" in
         postgres)
@@ -2761,7 +2773,7 @@ do_backup() {
     local backup_dir="$CFG_BACKUP_DIR"
     local tmp_dir; tmp_dir=$(mktemp -d)
     # Гарантировать очистку временной директории при выходе или сигналах
-    trap 'cleanup_tmpdir "$tmp_dir"' EXIT INT TERM
+    trap 'cleanup_tmpdir "${tmp_dir:-}"' EXIT INT TERM
     local final_archive="${backup_dir}/${archive_name}"
     local has_data=false
 
@@ -3096,7 +3108,7 @@ _restore_from_archive() {
     local archive="$1"
     local tmp_dir; tmp_dir=$(mktemp -d)
     # Гарантировать очистку временной директории при выходе или сигналах
-    trap 'cleanup_tmpdir "$tmp_dir"' EXIT INT TERM
+    trap 'cleanup_tmpdir "${tmp_dir:-}"' EXIT INT TERM
 
     # Распаковать
     log_step "${L[rs_unpacking]}"
