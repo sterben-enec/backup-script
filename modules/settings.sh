@@ -41,7 +41,7 @@ _settings_telegram() {
         echo ""
         echo -e "${BOLD}${L[st_tg_title]}${NC}"
         echo "────────────────────────────────"
-        echo "  ${L[st_tg_token]} ${CFG_BOT_TOKEN:0:10}..."
+        echo "  ${L[st_tg_token]} ${CFG_BOT_TOKEN:+***}"
         echo "  ${L[st_tg_chatid]} ${CFG_CHAT_ID:-${L[not_set]}}"
         echo "  ${L[st_tg_thread]} ${CFG_THREAD_ID:-${L[not_set]}}"
         echo "  ${L[st_tg_proxy]} ${CFG_TG_PROXY:-${L[not_set]}}"

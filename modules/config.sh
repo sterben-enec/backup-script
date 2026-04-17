@@ -59,10 +59,24 @@ CFG_BACKUP_DIR_ENABLED="true"
 load_config() {
     local cfg_file="$1"
     if [[ -f "$cfg_file" ]]; then
+        # Защита от path traversal: канонизировать путь и проверить отсутствие ..
+        if [[ "$cfg_file" == *".."* ]]; then
+            log_error "Путь к конфигу содержит '..': $cfg_file"
+            return 1
+        fi
+        local real_cfg
+        real_cfg=$(realpath "$cfg_file" 2>/dev/null) || {
+            log_error "Не удалось канонизировать путь к конфигу: $cfg_file"
+            return 1
+        }
+        if [[ ! -f "$real_cfg" ]]; then
+            log_error "Конфиг не является обычным файлом: $real_cfg"
+            return 1
+        fi
         log_step "${L[cfg_loading]}"
         # shellcheck source=/dev/null
-        source "$cfg_file"
-        log_info "${L[cfg_loaded]} $cfg_file"
+        source "$real_cfg"
+        log_info "${L[cfg_loaded]} $real_cfg"
     fi
 }
 
@@ -75,59 +89,64 @@ save_config() {
     mkdir -p "$dir" || { log_error "${L[cfg_install_fail]} $dir"; return 1; }
 
     log_step "${L[saving_config]} $cfg_file"
-    cat > "$cfg_file" <<EOF
-# Universal Backup — конфигурация
-# Создан: $(date)
 
-CFG_VERSION="${CFG_VERSION}"
-CFG_LANG="${CFG_LANG}"
-CFG_AUTO_UPDATE="${CFG_AUTO_UPDATE}"
+    # Записываем конфиг построчно через printf чтобы избежать раскрытия $, `` и $()
+    # внутри значений при использовании heredoc без кавычек вокруг маркера.
+    # Секреты (пароли, токены, ключи) экранируются через printf '%q' — результат
+    # всегда является корректным bash-значением при source.
+    {
+        printf '# Universal Backup — конфигурация\n'
+        printf '# Создан: %s\n\n' "$(date)"
 
-# Telegram
-CFG_BOT_TOKEN="${CFG_BOT_TOKEN}"
-CFG_CHAT_ID="${CFG_CHAT_ID}"
-CFG_THREAD_ID="${CFG_THREAD_ID}"
-CFG_TG_PROXY="${CFG_TG_PROXY}"
+        printf 'CFG_VERSION=%s\n'    "$CFG_VERSION"
+        printf 'CFG_LANG=%s\n'       "$CFG_LANG"
+        printf 'CFG_AUTO_UPDATE=%s\n\n' "$CFG_AUTO_UPDATE"
 
-# Способ отправки
-CFG_UPLOAD_METHOD="${CFG_UPLOAD_METHOD}"
+        printf '# Telegram\n'
+        printf 'CFG_BOT_TOKEN=%s\n'  "$(printf '%q' "$CFG_BOT_TOKEN")"
+        printf 'CFG_CHAT_ID=%s\n'    "$(printf '%q' "$CFG_CHAT_ID")"
+        printf 'CFG_THREAD_ID=%s\n'  "$(printf '%q' "$CFG_THREAD_ID")"
+        printf 'CFG_TG_PROXY=%s\n\n' "$(printf '%q' "$CFG_TG_PROXY")"
 
-# S3
-CFG_S3_ENDPOINT="${CFG_S3_ENDPOINT}"
-CFG_S3_REGION="${CFG_S3_REGION}"
-CFG_S3_BUCKET="${CFG_S3_BUCKET}"
-CFG_S3_ACCESS_KEY="${CFG_S3_ACCESS_KEY}"
-CFG_S3_SECRET_KEY="${CFG_S3_SECRET_KEY}"
-CFG_S3_PREFIX="${CFG_S3_PREFIX}"
-CFG_S3_RETENTION_DAYS="${CFG_S3_RETENTION_DAYS}"
+        printf '# Способ отправки\n'
+        printf 'CFG_UPLOAD_METHOD=%s\n\n' "$CFG_UPLOAD_METHOD"
 
-# Google Drive
-CFG_GD_CLIENT_ID="${CFG_GD_CLIENT_ID}"
-CFG_GD_CLIENT_SECRET="${CFG_GD_CLIENT_SECRET}"
-CFG_GD_REFRESH_TOKEN="${CFG_GD_REFRESH_TOKEN}"
-CFG_GD_FOLDER_ID="${CFG_GD_FOLDER_ID}"
+        printf '# S3\n'
+        printf 'CFG_S3_ENDPOINT=%s\n'       "$(printf '%q' "$CFG_S3_ENDPOINT")"
+        printf 'CFG_S3_REGION=%s\n'         "$CFG_S3_REGION"
+        printf 'CFG_S3_BUCKET=%s\n'         "$(printf '%q' "$CFG_S3_BUCKET")"
+        printf 'CFG_S3_ACCESS_KEY=%s\n'     "$(printf '%q' "$CFG_S3_ACCESS_KEY")"
+        printf 'CFG_S3_SECRET_KEY=%s\n'     "$(printf '%q' "$CFG_S3_SECRET_KEY")"
+        printf 'CFG_S3_PREFIX=%s\n'         "$(printf '%q' "$CFG_S3_PREFIX")"
+        printf 'CFG_S3_RETENTION_DAYS=%s\n\n' "$CFG_S3_RETENTION_DAYS"
 
-# База данных
-CFG_DB_TYPE="${CFG_DB_TYPE}"
-CFG_DB_ENGINE="${CFG_DB_ENGINE}"
-CFG_DB_CONTAINER="${CFG_DB_CONTAINER}"
-CFG_DB_USER="${CFG_DB_USER}"
-CFG_DB_NAME="${CFG_DB_NAME}"
-CFG_DB_PASS="${CFG_DB_PASS}"
-CFG_DB_HOST="${CFG_DB_HOST}"
-CFG_DB_PORT="${CFG_DB_PORT}"
-CFG_DB_SSL="${CFG_DB_SSL}"
-CFG_DB_PGVER="${CFG_DB_PGVER}"
+        printf '# Google Drive\n'
+        printf 'CFG_GD_CLIENT_ID=%s\n'      "$(printf '%q' "$CFG_GD_CLIENT_ID")"
+        printf 'CFG_GD_CLIENT_SECRET=%s\n'  "$(printf '%q' "$CFG_GD_CLIENT_SECRET")"
+        printf 'CFG_GD_REFRESH_TOKEN=%s\n'  "$(printf '%q' "$CFG_GD_REFRESH_TOKEN")"
+        printf 'CFG_GD_FOLDER_ID=%s\n\n'   "$(printf '%q' "$CFG_GD_FOLDER_ID")"
 
-# Проект
-CFG_PROJECT_NAME="${CFG_PROJECT_NAME}"
-CFG_PROJECT_DIR="${CFG_PROJECT_DIR}"
-CFG_PROJECT_ENV="${CFG_PROJECT_ENV}"
-CFG_BACKUP_DIR="${CFG_BACKUP_DIR}"
-CFG_RETENTION_DAYS="${CFG_RETENTION_DAYS}"
-CFG_BACKUP_ENV="${CFG_BACKUP_ENV}"
-CFG_BACKUP_DIR_ENABLED="${CFG_BACKUP_DIR_ENABLED}"
-EOF
+        printf '# База данных\n'
+        printf 'CFG_DB_TYPE=%s\n'      "$CFG_DB_TYPE"
+        printf 'CFG_DB_ENGINE=%s\n'    "$CFG_DB_ENGINE"
+        printf 'CFG_DB_CONTAINER=%s\n' "$(printf '%q' "$CFG_DB_CONTAINER")"
+        printf 'CFG_DB_USER=%s\n'      "$(printf '%q' "$CFG_DB_USER")"
+        printf 'CFG_DB_NAME=%s\n'      "$(printf '%q' "$CFG_DB_NAME")"
+        printf 'CFG_DB_PASS=%s\n'      "$(printf '%q' "$CFG_DB_PASS")"
+        printf 'CFG_DB_HOST=%s\n'      "$(printf '%q' "$CFG_DB_HOST")"
+        printf 'CFG_DB_PORT=%s\n'      "$CFG_DB_PORT"
+        printf 'CFG_DB_SSL=%s\n'       "$CFG_DB_SSL"
+        printf 'CFG_DB_PGVER=%s\n\n'   "$CFG_DB_PGVER"
+
+        printf '# Проект\n'
+        printf 'CFG_PROJECT_NAME=%s\n'        "$(printf '%q' "$CFG_PROJECT_NAME")"
+        printf 'CFG_PROJECT_DIR=%s\n'         "$(printf '%q' "$CFG_PROJECT_DIR")"
+        printf 'CFG_PROJECT_ENV=%s\n'         "$(printf '%q' "$CFG_PROJECT_ENV")"
+        printf 'CFG_BACKUP_DIR=%s\n'          "$(printf '%q' "$CFG_BACKUP_DIR")"
+        printf 'CFG_RETENTION_DAYS=%s\n'      "$CFG_RETENTION_DAYS"
+        printf 'CFG_BACKUP_ENV=%s\n'          "$CFG_BACKUP_ENV"
+        printf 'CFG_BACKUP_DIR_ENABLED=%s\n'  "$CFG_BACKUP_DIR_ENABLED"
+    } | (umask 077; cat > "${cfg_file}.tmp") && mv "${cfg_file}.tmp" "$cfg_file"
     secure_file "$cfg_file"
     log_info "${L[config_saved]}"
 }
@@ -357,6 +376,11 @@ setup_gd_config() {
 # ─────────────────────────────────────────────
 load_language() {
     local lang="${1:-en}"
+    # Allowlist: допускаем только "en" или "ru" во избежание path traversal
+    if [[ "$lang" != "en" && "$lang" != "ru" ]]; then
+        log_warn "Неизвестный язык '$lang', используется 'en'"
+        lang="en"
+    fi
     local lang_file="${SCRIPT_DIR}/translations/${lang}.sh"
     if [[ -f "$lang_file" ]]; then
         # shellcheck source=/dev/null

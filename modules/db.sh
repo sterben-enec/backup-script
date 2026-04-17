@@ -86,11 +86,10 @@ _db_dump_external() {
 # ─────────────────────────────────────────────
 _pg_dump_docker() {
     local output_file="$1"
-    local pass_env=""
-    [[ -n "$CFG_DB_PASS" ]] && pass_env="-e PGPASSWORD=${CFG_DB_PASS}"
+    local pass_env=()
+    [[ -n "$CFG_DB_PASS" ]] && pass_env=(-e "PGPASSWORD=${CFG_DB_PASS}")
 
-    # shellcheck disable=SC2086
-    docker exec $pass_env "$CFG_DB_CONTAINER" \
+    docker exec "${pass_env[@]}" "$CFG_DB_CONTAINER" \
         pg_dump -U "$CFG_DB_USER" -d "$CFG_DB_NAME" --no-owner --no-acl -Fc \
         > "$output_file"
 }
@@ -129,11 +128,11 @@ _install_pgclient() {
 # ─────────────────────────────────────────────
 _mysql_dump_docker() {
     local output_file="$1"
-    local pass_flag=""
-    [[ -n "$CFG_DB_PASS" ]] && pass_flag="-p${CFG_DB_PASS}"
+    local pass_env=()
+    [[ -n "$CFG_DB_PASS" ]] && pass_env=(-e "MYSQL_PWD=${CFG_DB_PASS}")
 
-    docker exec "$CFG_DB_CONTAINER" \
-        mysqldump -u "$CFG_DB_USER" $pass_flag \
+    docker exec "${pass_env[@]}" "$CFG_DB_CONTAINER" \
+        mysqldump -u "$CFG_DB_USER" \
         --single-transaction --routines --triggers \
         "$CFG_DB_NAME" \
         > "$output_file"
@@ -148,11 +147,8 @@ _mysql_dump_external() {
 
     local host="${CFG_DB_HOST:-localhost}"
     local port="${CFG_DB_PORT:-3306}"
-    local pass_flag=""
-    [[ -n "$CFG_DB_PASS" ]] && pass_flag="-p${CFG_DB_PASS}"
 
-    # shellcheck disable=SC2086
-    mysqldump -h "$host" -P "$port" -u "$CFG_DB_USER" $pass_flag \
+    MYSQL_PWD="$CFG_DB_PASS" mysqldump -h "$host" -P "$port" -u "$CFG_DB_USER" \
         --single-transaction --routines --triggers \
         "$CFG_DB_NAME" \
         > "$output_file"
@@ -163,17 +159,13 @@ _mysql_dump_external() {
 # ─────────────────────────────────────────────
 _mongo_dump_docker() {
     local output_file="$1"
-    local tmpdir; tmpdir=$(mktemp -d)
+    local auth_args=()
+    [[ -n "$CFG_DB_USER" ]] && auth_args+=(--username "$CFG_DB_USER")
+    [[ -n "$CFG_DB_PASS" ]] && auth_args+=(--password "$CFG_DB_PASS")
+    [[ -n "$CFG_DB_NAME" ]] && auth_args+=(--db "$CFG_DB_NAME")
 
-    local auth_args=""
-    [[ -n "$CFG_DB_USER" ]] && auth_args="--username ${CFG_DB_USER}"
-    [[ -n "$CFG_DB_PASS" ]] && auth_args="${auth_args} --password ${CFG_DB_PASS}"
-    [[ -n "$CFG_DB_NAME" ]] && auth_args="${auth_args} --db ${CFG_DB_NAME}"
-
-    # shellcheck disable=SC2086
-    docker exec "$CFG_DB_CONTAINER" mongodump $auth_args --archive \
+    docker exec "$CFG_DB_CONTAINER" mongodump "${auth_args[@]}" --archive \
         > "$output_file"
-    rm -rf "$tmpdir"
 }
 
 # ─────────────────────────────────────────────
@@ -186,13 +178,12 @@ _mongo_dump_external() {
     local host="${CFG_DB_HOST:-localhost}"
     local port="${CFG_DB_PORT:-27017}"
 
-    local auth_args=""
-    [[ -n "$CFG_DB_USER" ]] && auth_args="--username ${CFG_DB_USER}"
-    [[ -n "$CFG_DB_PASS" ]] && auth_args="${auth_args} --password ${CFG_DB_PASS}"
-    [[ -n "$CFG_DB_NAME" ]] && auth_args="${auth_args} --db ${CFG_DB_NAME}"
+    local auth_args=()
+    [[ -n "$CFG_DB_USER" ]] && auth_args+=(--username "$CFG_DB_USER")
+    [[ -n "$CFG_DB_PASS" ]] && auth_args+=(--password "$CFG_DB_PASS")
+    [[ -n "$CFG_DB_NAME" ]] && auth_args+=(--db "$CFG_DB_NAME")
 
-    # shellcheck disable=SC2086
-    mongodump --host "$host" --port "$port" $auth_args --archive \
+    mongodump --host "$host" --port "$port" "${auth_args[@]}" --archive \
         > "$output_file"
 }
 
@@ -250,35 +241,31 @@ _pg_restore() {
     local dump_file="$1" container="$2" db_name="$3" db_user="$4" db_pass="$5"
     _wait_pg_ready "$container" "$db_user" || return 1
 
-    local pass_env=""
-    [[ -n "$db_pass" ]] && pass_env="-e PGPASSWORD=${db_pass}"
+    local pass_env=()
+    [[ -n "$db_pass" ]] && pass_env=(-e "PGPASSWORD=${db_pass}")
 
     # Сначала дропаем и создаём заново
-    # shellcheck disable=SC2086
-    docker exec $pass_env "$container" \
+    docker exec "${pass_env[@]}" "$container" \
         psql -U "$db_user" -c "DROP DATABASE IF EXISTS \"${db_name}\";" postgres &>/dev/null || true
-    # shellcheck disable=SC2086
-    docker exec $pass_env "$container" \
+    docker exec "${pass_env[@]}" "$container" \
         psql -U "$db_user" -c "CREATE DATABASE \"${db_name}\";" postgres &>/dev/null || true
 
-    # shellcheck disable=SC2086
-    docker exec -i $pass_env "$container" \
+    docker exec -i "${pass_env[@]}" "$container" \
         pg_restore -U "$db_user" -d "$db_name" --no-owner --no-acl < "$dump_file"
 }
 
 _mysql_restore() {
     local dump_file="$1" container="$2" db_name="$3" db_user="$4" db_pass="$5"
-    local pass_flag=""
-    [[ -n "$db_pass" ]] && pass_flag="-p${db_pass}"
+    local pass_env=()
+    [[ -n "$db_pass" ]] && pass_env=(-e "MYSQL_PWD=${db_pass}")
 
-    # shellcheck disable=SC2086
-    docker exec -i "$container" \
-        mysql -u "$db_user" $pass_flag "$db_name" < "$dump_file"
+    docker exec -i "${pass_env[@]}" "$container" \
+        mysql -u "$db_user" "$db_name" < "$dump_file"
 }
 
 _mongo_restore() {
     local dump_file="$1" container="$2"
-    docker exec -i "$container" mongorestore --archive < "$dump_file"
+    docker exec -i "$container" mongorestore --drop --archive < "$dump_file"
 }
 
 # ─────────────────────────────────────────────
@@ -299,11 +286,8 @@ db_test_connection() {
                 -U "$CFG_DB_USER" &>/dev/null
             ;;
         mysql|mariadb)
-            local pass_flag=""
-            [[ -n "$CFG_DB_PASS" ]] && pass_flag="-p${CFG_DB_PASS}"
-            # shellcheck disable=SC2086
-            mysql -h "${CFG_DB_HOST:-localhost}" -P "${CFG_DB_PORT:-3306}" \
-                -u "$CFG_DB_USER" $pass_flag -e "SELECT 1;" &>/dev/null
+            MYSQL_PWD="$CFG_DB_PASS" mysql -h "${CFG_DB_HOST:-localhost}" -P "${CFG_DB_PORT:-3306}" \
+                -u "$CFG_DB_USER" -e "SELECT 1;" &>/dev/null
             ;;
         mongodb|mongo)
             mongosh --host "${CFG_DB_HOST:-localhost}" \

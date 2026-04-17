@@ -112,6 +112,8 @@ _pick_s3_backup() {
 _restore_from_archive() {
     local archive="$1"
     local tmp_dir; tmp_dir=$(mktemp -d)
+    # Гарантировать очистку временной директории при выходе или сигналах
+    trap 'cleanup_tmpdir "$tmp_dir"' EXIT INT TERM
 
     # Распаковать
     log_step "${L[rs_unpacking]}"
@@ -218,6 +220,8 @@ _restore_from_archive() {
     fi
 
     cleanup_tmpdir "$tmp_dir"
+    # Сбросить trap после явной очистки
+    trap - EXIT INT TERM
 
     if [[ "$restored_anything" == "false" ]]; then
         log_warn "${L[rs_nothing]}"

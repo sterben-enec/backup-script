@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Управление cron-расписанием автоматического бэкапа
 
-CRON_MARKER="# universal-backup: ${CFG_PROJECT_NAME:-backup}"
+# Вычисляется лениво, после загрузки конфига
+_cron_marker() { echo "# universal-backup: ${CFG_PROJECT_NAME:-backup}"; }
 
 # ─────────────────────────────────────────────
 # Меню настройки cron
@@ -35,7 +36,7 @@ cron_menu() {
 
 # Показать текущий статус cron
 _cron_status_line() {
-    local current; current=$(crontab -l 2>/dev/null | grep "$CRON_MARKER")
+    local current; current=$(crontab -l 2>/dev/null | grep -F "$(_cron_marker)")
     if [[ -n "$current" ]]; then
         local schedule; schedule=$(echo "$current" | awk '{print $1,$2,$3,$4,$5}')
         echo "${L[cron_on]} ${schedule} ${L[cron_utc]}"
@@ -92,43 +93,46 @@ _parse_daily_times() {
         minutes_list+=("$m")
     done
 
-    if [[ ${#times[@]} -eq 1 ]]; then
-        echo "${minutes_list[0]} ${hours_list[0]} * * *"
-    else
-        local h_joined; h_joined=$(IFS=,; echo "${hours_list[*]}")
-        local m_joined; m_joined=$(IFS=,; echo "${minutes_list[*]}")
-        echo "${m_joined} ${h_joined} * * *"
-    fi
+    local i
+    for (( i = 0; i < ${#times[@]}; i++ )); do
+        echo "${minutes_list[$i]} ${hours_list[$i]} * * *"
+    done
 }
 
 # Установить cron-задачу
 _install_cron() {
     local cron_expr="$1"
     local script_path; script_path=$(realpath "$BACKUP_SCRIPT" 2>/dev/null || echo "$BACKUP_SCRIPT")
-    local cron_cmd="${cron_expr} ${script_path} backup ${CRON_MARKER}"
+    local marker; marker=$(_cron_marker)
+    # cron_expr может содержать несколько строк (по одной на каждое время)
+    local cron_lines=""
+    while IFS= read -r expr_line; do
+        [[ -z "$expr_line" ]] && continue
+        cron_lines+="${expr_line} ${script_path} backup ${marker}"$'\n'
+    done <<< "$cron_expr"
 
     log_step "${L[cron_setting]}"
 
     # Удалить старые записи этого проекта
     local current_cron
-    current_cron=$(crontab -l 2>/dev/null | grep -v "$CRON_MARKER")
+    current_cron=$(crontab -l 2>/dev/null | grep -vF "$marker")
 
     # Добавить SHELL и PATH если нет
     local new_cron=""
-    if ! echo "$current_cron" | grep -q "^SHELL="; then
-        new_cron+="SHELL=/bin/bash\n"
+    if ! printf '%s\n' "$current_cron" | grep -q "^SHELL="; then
+        new_cron+=$'SHELL=/bin/bash\n'
         log_info "${L[cron_shell]}"
     fi
-    if ! echo "$current_cron" | grep -q "^PATH="; then
-        new_cron+="PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n"
+    if ! printf '%s\n' "$current_cron" | grep -q "^PATH="; then
+        new_cron+=$'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n'
         log_info "${L[cron_path_add]}"
     else
         log_info "${L[cron_path_exists]}"
     fi
 
-    new_cron+="${current_cron}\n${cron_cmd}"
+    new_cron+="${current_cron}"$'\n'"${cron_lines}"
 
-    if echo -e "$new_cron" | crontab -; then
+    if printf '%s\n' "$new_cron" | crontab -; then
         log_info "${L[cron_ok]}"
         echo "${L[cron_set]} ${cron_expr}"
     else
@@ -140,7 +144,7 @@ _install_cron() {
 _cron_disable() {
     log_step "${L[cron_disabling]}"
     local current_cron
-    current_cron=$(crontab -l 2>/dev/null | grep -v "$CRON_MARKER")
+    current_cron=$(crontab -l 2>/dev/null | grep -vF "$(_cron_marker)")
     echo "$current_cron" | crontab -
     log_info "${L[cron_disabled]}"
 }

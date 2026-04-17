@@ -15,6 +15,25 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────
+# Разобрать аргументы (предварительный проход для COMMAND)
+# ─────────────────────────────────────────────
+_PRECHECK_COMMAND=""
+for _arg in "$@"; do
+    if [[ "$_arg" == "backup" || "$_arg" == "restore" ]]; then
+        _PRECHECK_COMMAND="$_arg"
+        break
+    fi
+done
+
+# Если stdin не является TTY и команда не задана — отказать во избежание
+# silent crash от `read` при set -e в неинтерактивной среде (cron, CI)
+if [[ -z "$_PRECHECK_COMMAND" ]] && ! [[ -t 0 ]]; then
+    echo "[ERROR] Интерактивный режим требует TTY. Для cron используйте: $(basename "$0") backup" >&2
+    exit 1
+fi
+unset _PRECHECK_COMMAND _arg
+
+# ─────────────────────────────────────────────
 # Пути
 # ─────────────────────────────────────────────
 BACKUP_SCRIPT="$(realpath "${BASH_SOURCE[0]}")"

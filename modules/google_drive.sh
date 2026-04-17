@@ -45,11 +45,23 @@ gd_upload() {
     metadata+="}"
 
     log_step "${L[bk_sending]} → Google Drive"
+
+    # Формируем multipart/related тело вручную
+    local boundary="boundary_$(date +%s)_$$"
+    local body_file; body_file=$(mktemp)
+
+    printf -- "--%s\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n%s\r\n--%s\r\nContent-Type: application/gzip\r\n\r\n" \
+        "$boundary" "$metadata" "$boundary" > "$body_file"
+    cat "$file" >> "$body_file"
+    printf -- "\r\n--%s--\r\n" "$boundary" >> "$body_file"
+
     local response
     response=$(curl -s -X POST "$GD_API_UPLOAD" \
         -H "Authorization: Bearer ${access_token}" \
-        -F "metadata=${metadata};type=application/json;charset=UTF-8" \
-        -F "file=@${file};type=application/gzip")
+        -H "Content-Type: multipart/related; boundary=${boundary}" \
+        --data-binary "@${body_file}")
+
+    rm -f "$body_file"
 
     local file_id
     file_id=$(echo "$response" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)

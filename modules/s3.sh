@@ -18,11 +18,11 @@ _s3_key() {
     fi
 }
 
-# Базовые аргументы aws s3 с endpoint
+# Заполнить глобальный массив S3_EXTRA_ARGS аргументами для aws s3
+# Использование: _s3_args; затем "${S3_EXTRA_ARGS[@]}" в вызовах aws
 _s3_args() {
-    local args=()
-    [[ -n "$CFG_S3_ENDPOINT" ]] && args+=(--endpoint-url "$CFG_S3_ENDPOINT")
-    echo "${args[@]}"
+    S3_EXTRA_ARGS=()
+    [[ -n "$CFG_S3_ENDPOINT" ]] && S3_EXTRA_ARGS+=(--endpoint-url "$CFG_S3_ENDPOINT")
 }
 
 # ─────────────────────────────────────────────
@@ -37,11 +37,10 @@ s3_upload() {
 
     local filename; filename=$(basename "$file")
     local key; key=$(_s3_key "$filename")
-    local s3_args; s3_args=$(_s3_args)
+    _s3_args
 
     log_step "${L[bk_sending]} → s3://${CFG_S3_BUCKET}/${key}"
-    # shellcheck disable=SC2086
-    if aws s3 cp "$file" "s3://${CFG_S3_BUCKET}/${key}" $s3_args; then
+    if aws s3 cp "$file" "s3://${CFG_S3_BUCKET}/${key}" "${S3_EXTRA_ARGS[@]}"; then
         log_info "${L[s3_upload_ok]}"
         return 0
     else
@@ -59,7 +58,7 @@ s3_cleanup() {
     _s3_env
 
     local prefix="${CFG_S3_PREFIX:+${CFG_S3_PREFIX%/}/}"
-    local s3_args; s3_args=$(_s3_args)
+    _s3_args
     local cutoff; cutoff=$(date -d "-${retention} days" +%s 2>/dev/null || date -v-"${retention}"d +%s)
 
     printf "${L[bk_s3_retention]}\n" "$retention"
@@ -74,11 +73,9 @@ s3_cleanup() {
         local file_ts
         file_ts=$(date -d "$file_date" +%s 2>/dev/null || date -j -f "%Y-%m-%d %H:%M:%S" "$file_date" +%s 2>/dev/null)
         if [[ -n "$file_ts" && "$file_ts" -lt "$cutoff" ]]; then
-            # shellcheck disable=SC2086
-            aws s3 rm "s3://${CFG_S3_BUCKET}/${file_key}" $s3_args &>/dev/null && ((deleted++)) || true
+            aws s3 rm "s3://${CFG_S3_BUCKET}/${file_key}" "${S3_EXTRA_ARGS[@]}" &>/dev/null && ((deleted++)) || true
         fi
-    # shellcheck disable=SC2086
-    done < <(aws s3 ls "s3://${CFG_S3_BUCKET}/${prefix}" $s3_args 2>/dev/null)
+    done < <(aws s3 ls "s3://${CFG_S3_BUCKET}/${prefix}" "${S3_EXTRA_ARGS[@]}" 2>/dev/null)
 
     printf "${L[s3_cleaned]}\n" "$deleted"
     log_info "${L[bk_s3_retention_ok]}"
@@ -92,11 +89,10 @@ s3_list_backups() {
     _s3_env
 
     local prefix="${CFG_S3_PREFIX:+${CFG_S3_PREFIX%/}/}"
-    local s3_args; s3_args=$(_s3_args)
+    _s3_args
 
     log_step "${L[rs_s3_listing]}"
-    # shellcheck disable=SC2086
-    aws s3 ls "s3://${CFG_S3_BUCKET}/${prefix}" $s3_args 2>/dev/null \
+    aws s3 ls "s3://${CFG_S3_BUCKET}/${prefix}" "${S3_EXTRA_ARGS[@]}" 2>/dev/null \
         | grep '\.tar\.gz$' \
         | sort -k1,2 -r
 }
@@ -110,9 +106,8 @@ s3_download() {
     ensure_awscli || return 1
     _s3_env
 
-    local s3_args; s3_args=$(_s3_args)
-    # shellcheck disable=SC2086
-    aws s3 cp "s3://${CFG_S3_BUCKET}/${s3_key}" "$dest" $s3_args
+    _s3_args
+    aws s3 cp "s3://${CFG_S3_BUCKET}/${s3_key}" "$dest" "${S3_EXTRA_ARGS[@]}"
 }
 
 # ─────────────────────────────────────────────
@@ -126,10 +121,9 @@ s3_test_connection() {
     ensure_awscli || return 1
     _s3_env
 
-    local s3_args; s3_args=$(_s3_args)
+    _s3_args
     log_step "${L[st_s3_testing]}"
-    # shellcheck disable=SC2086
-    if aws s3 ls "s3://${CFG_S3_BUCKET}" $s3_args &>/dev/null; then
+    if aws s3 ls "s3://${CFG_S3_BUCKET}" "${S3_EXTRA_ARGS[@]}" &>/dev/null; then
         log_info "${L[st_s3_test_ok]}"
         return 0
     else

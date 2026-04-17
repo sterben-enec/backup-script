@@ -9,6 +9,8 @@ do_backup() {
     local archive_name="${CFG_PROJECT_NAME}_${ts}.tar.gz"
     local backup_dir="$CFG_BACKUP_DIR"
     local tmp_dir; tmp_dir=$(mktemp -d)
+    # Гарантировать очистку временной директории при выходе или сигналах
+    trap 'cleanup_tmpdir "$tmp_dir"' EXIT INT TERM
     local final_archive="${backup_dir}/${archive_name}"
     local has_data=false
 
@@ -111,6 +113,8 @@ EOF
     fi
 
     cleanup_tmpdir "$tmp_dir"
+    # Сбросить trap после явной очистки
+    trap - EXIT INT TERM
     log_info "${L[bk_final_ok]} $final_archive"
 
     # ── 6. Отправить/загрузить ───────────────────
@@ -213,6 +217,11 @@ _send_via_gd() {
 # ─────────────────────────────────────────────
 _apply_local_retention() {
     local retention="${CFG_RETENTION_DAYS:-30}"
+    # Проверить, что значение является положительным целым числом
+    if ! [[ "$retention" =~ ^[1-9][0-9]*$ ]]; then
+        log_warn "CFG_RETENTION_DAYS='$retention' не является положительным целым числом — локальная ротация пропущена"
+        return 0
+    fi
     printf "${L[bk_retention]}\n" "$retention"
     find "$CFG_BACKUP_DIR" -maxdepth 1 -name "*.tar.gz" \
         -mtime "+${retention}" -delete 2>/dev/null || true
