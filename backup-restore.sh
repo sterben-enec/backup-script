@@ -7,10 +7,11 @@
 # Лицензия: MIT
 #
 # Использование:
-#   ./backup-restore.sh              — интерактивное меню
-#   ./backup-restore.sh backup       — создать бэкап немедленно (для cron)
-#   ./backup-restore.sh restore      — восстановление
+#   ./backup-restore.sh                    — интерактивное меню
+#   ./backup-restore.sh backup             — создать бэкап немедленно (для cron)
+#   ./backup-restore.sh restore            — восстановление
 #   ./backup-restore.sh --config /path/to/config.cfg
+#   ./backup-restore.sh --project PROJECT backup
 #
 # GitHub: https://github.com/sterben-enec/backup-script
 #
@@ -20,20 +21,23 @@ set -euo pipefail
 # Разобрать аргументы (предварительный проход для COMMAND)
 # ─────────────────────────────────────────────
 _PRECHECK_COMMAND=""
+_PRECHECK_HELP="false"
 for _arg in "$@"; do
     if [[ "$_arg" == "backup" || "$_arg" == "restore" ]]; then
         _PRECHECK_COMMAND="$_arg"
         break
+    elif [[ "$_arg" == "--help" || "$_arg" == "-h" ]]; then
+        _PRECHECK_HELP="true"
     fi
 done
 
 # Если stdin не является TTY и команда не задана — отказать во избежание
 # silent crash от `read` при set -e в неинтерактивной среде (cron, CI)
-if [[ -z "$_PRECHECK_COMMAND" ]] && ! [[ -t 0 ]]; then
+if [[ -z "$_PRECHECK_COMMAND" && "$_PRECHECK_HELP" != "true" ]] && ! [[ -t 0 ]]; then
     echo "[ERROR] Интерактивный режим требует TTY. Для cron используйте: $(basename "$0") backup" >&2
     exit 1
 fi
-unset _PRECHECK_COMMAND _arg
+unset _PRECHECK_COMMAND _PRECHECK_HELP _arg
 
 # ─────────────────────────────────────────────
 # Пути
@@ -42,8 +46,21 @@ BACKUP_SCRIPT="$(realpath "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname "$BACKUP_SCRIPT")"
 SCRIPT_VERSION="$(grep -m1 '^# VERSION=' "$BACKUP_SCRIPT" | cut -d= -f2)"
 
-# Конфиг по умолчанию — рядом со скриптом
-CONFIG_FILE="${CONFIG_FILE:-${SCRIPT_DIR}/backup.cfg}"
+# Рабочие директории по умолчанию (самодостаточный режим)
+if [[ $EUID -eq 0 ]]; then
+    DEFAULT_BACKREST_HOME="/var/lib/universal-backup"
+else
+    DEFAULT_BACKREST_HOME="${HOME}/.local/share/universal-backup"
+fi
+BACKREST_HOME="${BACKREST_HOME:-$DEFAULT_BACKREST_HOME}"
+DEFAULT_CONFIG_DIR="${BACKREST_CONFIG_DIR:-${BACKREST_HOME}/config}"
+DEFAULT_PROJECTS_DIR="${BACKREST_PROJECTS_DIR:-${DEFAULT_CONFIG_DIR}/projects}"
+DEFAULT_BACKUP_DIR="${BACKREST_BACKUP_DIR:-${BACKREST_HOME}/backups}"
+
+# Основной конфиг и директория проектов
+CONFIG_FILE="${CONFIG_FILE:-${DEFAULT_CONFIG_DIR}/backup.cfg}"
+PROJECTS_DIR="${PROJECTS_DIR:-$DEFAULT_PROJECTS_DIR}"
+CLI_PROJECT=""
 
 # ─────────────────────────────────────────────
 # Разобрать аргументы
@@ -52,7 +69,13 @@ COMMAND=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --config)
+            [[ $# -lt 2 ]] && { echo "[ERROR] Missing value for --config" >&2; exit 1; }
             CONFIG_FILE="$2"
+            shift 2
+            ;;
+        --project)
+            [[ $# -lt 2 ]] && { echo "[ERROR] Missing value for --project" >&2; exit 1; }
+            CLI_PROJECT="$2"
             shift 2
             ;;
         backup|restore)
@@ -64,13 +87,18 @@ while [[ $# -gt 0 ]]; do
 Universal Backup & Restore v${SCRIPT_VERSION}
 
 Использование:
-  $(basename "$0")                         Интерактивное меню
-  $(basename "$0") backup                  Создать бэкап (для cron)
-  $(basename "$0") restore                 Интерактивное восстановление
-  $(basename "$0") --config /path/cfg      Указать конфиг-файл
+  $(basename "$0")                                Интерактивное меню
+  $(basename "$0") backup                         Создать бэкап (для cron)
+  $(basename "$0") restore                        Интерактивное восстановление
+  $(basename "$0") --config /path/cfg             Указать конфиг-файл
+  $(basename "$0") --project project_id backup    Запуск для конкретного проекта
 
 Переменные окружения:
-  CONFIG_FILE    Путь к конфиг-файлу (по умолчанию: рядом со скриптом)
+  CONFIG_FILE            Путь к конфиг-файлу
+  BACKREST_HOME          Базовая директория данных скрипта
+  BACKREST_CONFIG_DIR    Директория конфигов
+  BACKREST_PROJECTS_DIR  Директория профилей проектов
+  BACKREST_BACKUP_DIR    Директория локальных бэкапов
 EOF
             exit 0
             ;;
@@ -79,6 +107,12 @@ EOF
             ;;
     esac
 done
+
+# Если передали --config, но PROJECTS_DIR явно не переопределяли — храним
+# профили рядом с выбранным конфигом.
+if [[ "${PROJECTS_DIR}" == "${DEFAULT_PROJECTS_DIR}" ]]; then
+    PROJECTS_DIR="$(dirname "$CONFIG_FILE")/projects"
+fi
 
 ###############################################################################
 # MODULE: utils
@@ -1451,16 +1485,20 @@ CFG_VERSION="1.0.0"
 CFG_LANG="en"
 CFG_AUTO_UPDATE="false"
 
-# Telegram
+# Telegram (глобально)
 CFG_BOT_TOKEN=""
 CFG_CHAT_ID=""
 CFG_THREAD_ID=""
 CFG_TG_PROXY=""
 
-# Способ отправки: telegram | s3 | google_drive
+# Активный профиль проекта
+CFG_ACTIVE_PROJECT=""
+CFG_PROJECT_ID=""
+
+# Способ отправки: telegram | s3 | google_drive (профиль проекта)
 CFG_UPLOAD_METHOD="telegram"
 
-# S3
+# S3 (профиль проекта)
 CFG_S3_ENDPOINT=""
 CFG_S3_REGION="us-east-1"
 CFG_S3_BUCKET=""
@@ -1469,13 +1507,13 @@ CFG_S3_SECRET_KEY=""
 CFG_S3_PREFIX=""
 CFG_S3_RETENTION_DAYS="30"
 
-# Google Drive
+# Google Drive (профиль проекта)
 CFG_GD_CLIENT_ID=""
 CFG_GD_CLIENT_SECRET=""
 CFG_GD_REFRESH_TOKEN=""
 CFG_GD_FOLDER_ID=""
 
-# БД
+# БД (профиль проекта)
 CFG_DB_TYPE="none"          # none | docker | external
 CFG_DB_ENGINE="postgres"    # postgres | mysql | mongodb
 CFG_DB_CONTAINER=""
@@ -1487,113 +1525,357 @@ CFG_DB_PORT="5432"
 CFG_DB_SSL="prefer"
 CFG_DB_PGVER="17"
 
-# Проект
+# Проект (профиль проекта)
 CFG_PROJECT_NAME=""
 CFG_PROJECT_DIR=""
 CFG_PROJECT_ENV=""
-CFG_BACKUP_DIR="/var/backups/universal-backup"
+CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
 CFG_RETENTION_DAYS="30"
 
-# Флаги включения источников
+# Флаги включения источников (профиль проекта)
 CFG_BACKUP_ENV="true"
 CFG_BACKUP_DIR_ENABLED="true"
+
+ensure_runtime_dirs() {
+    local cfg_dir
+    cfg_dir="$(dirname "$CONFIG_FILE")"
+    mkdir -p "$cfg_dir" "$PROJECTS_DIR" "$DEFAULT_BACKUP_DIR" 2>/dev/null || true
+    [[ -n "${CFG_BACKUP_DIR:-}" ]] && mkdir -p "$CFG_BACKUP_DIR" 2>/dev/null || true
+}
+
+_project_file_path() {
+    local project_id="$1"
+    echo "${PROJECTS_DIR}/${project_id}.cfg"
+}
+
+_project_slug() {
+    local raw="$1"
+    local slug
+    slug="$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/_/g; s/_\+/_/g; s/^_//; s/_$//')"
+    [[ -z "$slug" ]] && slug="project_$(date +%s)"
+    echo "$slug"
+}
+
+_project_unique_id() {
+    local base="$1"
+    local candidate="$base"
+    local i=2
+    while [[ -f "$(_project_file_path "$candidate")" ]]; do
+        candidate="${base}_${i}"
+        ((i++))
+    done
+    echo "$candidate"
+}
+
+list_project_ids() {
+    [[ -d "$PROJECTS_DIR" ]] || return 0
+    find "$PROJECTS_DIR" -maxdepth 1 -type f -name "*.cfg" -print 2>/dev/null \
+        | sed 's#.*/##; s/\.cfg$//' \
+        | sort
+}
+
+project_count() {
+    local count=0
+    while IFS= read -r _id; do
+        [[ -n "$_id" ]] && ((count++))
+    done < <(list_project_ids)
+    echo "$count"
+}
+
+reset_project_profile_defaults() {
+    CFG_UPLOAD_METHOD="telegram"
+
+    CFG_S3_ENDPOINT=""
+    CFG_S3_REGION="us-east-1"
+    CFG_S3_BUCKET=""
+    CFG_S3_ACCESS_KEY=""
+    CFG_S3_SECRET_KEY=""
+    CFG_S3_PREFIX=""
+    CFG_S3_RETENTION_DAYS="30"
+
+    CFG_GD_CLIENT_ID=""
+    CFG_GD_CLIENT_SECRET=""
+    CFG_GD_REFRESH_TOKEN=""
+    CFG_GD_FOLDER_ID=""
+
+    CFG_DB_TYPE="none"
+    CFG_DB_ENGINE="postgres"
+    CFG_DB_CONTAINER=""
+    CFG_DB_USER="postgres"
+    CFG_DB_NAME="postgres"
+    CFG_DB_PASS=""
+    CFG_DB_HOST=""
+    CFG_DB_PORT="5432"
+    CFG_DB_SSL="prefer"
+    CFG_DB_PGVER="17"
+
+    CFG_PROJECT_NAME=""
+    CFG_PROJECT_DIR=""
+    CFG_PROJECT_ENV=""
+    CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
+    CFG_RETENTION_DAYS="30"
+    CFG_BACKUP_ENV="true"
+    CFG_BACKUP_DIR_ENABLED="true"
+}
+
+project_display_name() {
+    local project_id="$1"
+    local project_file
+    project_file="$(_project_file_path "$project_id")"
+    local name=""
+    if [[ -f "$project_file" ]]; then
+        name="$(
+            (
+                set +u
+                # shellcheck source=/dev/null
+                source "$project_file" >/dev/null 2>&1
+                printf '%s' "${CFG_PROJECT_NAME:-}"
+            ) 2>/dev/null || true
+        )"
+    fi
+    [[ -z "$name" ]] && name="$project_id"
+    echo "$name"
+}
+
+resolve_project_id() {
+    local selector="$1"
+    [[ -z "$selector" ]] && return 1
+    if [[ -f "$(_project_file_path "$selector")" ]]; then
+        echo "$selector"
+        return 0
+    fi
+    local id name
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        name="$(project_display_name "$id")"
+        if [[ "$name" == "$selector" ]]; then
+            echo "$id"
+            return 0
+        fi
+    done < <(list_project_ids)
+    return 1
+}
+
+activate_project_by_selector() {
+    local selector="$1"
+    local persist="${2:-false}"
+    local resolved
+    resolved="$(resolve_project_id "$selector")" || return 1
+    load_project_config "$resolved" || return 1
+    CFG_ACTIVE_PROJECT="$resolved"
+    CFG_PROJECT_ID="$resolved"
+    if [[ "$persist" == "true" ]]; then
+        save_global_config "$CONFIG_FILE" || return 1
+    fi
+    return 0
+}
+
+switch_active_project() {
+    activate_project_by_selector "$1" true
+}
+
+save_global_config() {
+    local cfg_file="$1"
+    local dir
+    dir="$(dirname "$cfg_file")"
+    mkdir -p "$dir" "$PROJECTS_DIR" || { log_error "${L[cfg_install_fail]} $dir"; return 1; }
+
+    {
+        printf '# Universal Backup — global configuration\n'
+        printf '# Created: %s\n\n' "$(date)"
+        printf 'CFG_VERSION=%s\n'           "$CFG_VERSION"
+        printf 'CFG_LANG=%s\n'              "$CFG_LANG"
+        printf 'CFG_AUTO_UPDATE=%s\n'       "$CFG_AUTO_UPDATE"
+        printf 'CFG_ACTIVE_PROJECT=%s\n'    "$(printf '%q' "$CFG_ACTIVE_PROJECT")"
+        printf 'PROJECTS_DIR=%s\n\n'        "$(printf '%q' "$PROJECTS_DIR")"
+
+        printf '# Telegram\n'
+        printf 'CFG_BOT_TOKEN=%s\n'         "$(printf '%q' "$CFG_BOT_TOKEN")"
+        printf 'CFG_CHAT_ID=%s\n'           "$(printf '%q' "$CFG_CHAT_ID")"
+        printf 'CFG_THREAD_ID=%s\n'         "$(printf '%q' "$CFG_THREAD_ID")"
+        printf 'CFG_TG_PROXY=%s\n'          "$(printf '%q' "$CFG_TG_PROXY")"
+    } | (umask 077; cat > "${cfg_file}.tmp") && mv "${cfg_file}.tmp" "$cfg_file"
+    secure_file "$cfg_file"
+}
+
+save_project_config() {
+    local project_id="$1"
+    local project_file
+    project_file="$(_project_file_path "$project_id")"
+    mkdir -p "$PROJECTS_DIR" || return 1
+
+    {
+        printf '# Universal Backup — project profile\n'
+        printf '# Project ID: %s\n' "$project_id"
+        printf '# Created: %s\n\n' "$(date)"
+
+        printf 'CFG_UPLOAD_METHOD=%s\n\n' "$CFG_UPLOAD_METHOD"
+
+        printf '# S3\n'
+        printf 'CFG_S3_ENDPOINT=%s\n'        "$(printf '%q' "$CFG_S3_ENDPOINT")"
+        printf 'CFG_S3_REGION=%s\n'          "$CFG_S3_REGION"
+        printf 'CFG_S3_BUCKET=%s\n'          "$(printf '%q' "$CFG_S3_BUCKET")"
+        printf 'CFG_S3_ACCESS_KEY=%s\n'      "$(printf '%q' "$CFG_S3_ACCESS_KEY")"
+        printf 'CFG_S3_SECRET_KEY=%s\n'      "$(printf '%q' "$CFG_S3_SECRET_KEY")"
+        printf 'CFG_S3_PREFIX=%s\n'          "$(printf '%q' "$CFG_S3_PREFIX")"
+        printf 'CFG_S3_RETENTION_DAYS=%s\n\n' "$CFG_S3_RETENTION_DAYS"
+
+        printf '# Google Drive\n'
+        printf 'CFG_GD_CLIENT_ID=%s\n'       "$(printf '%q' "$CFG_GD_CLIENT_ID")"
+        printf 'CFG_GD_CLIENT_SECRET=%s\n'   "$(printf '%q' "$CFG_GD_CLIENT_SECRET")"
+        printf 'CFG_GD_REFRESH_TOKEN=%s\n'   "$(printf '%q' "$CFG_GD_REFRESH_TOKEN")"
+        printf 'CFG_GD_FOLDER_ID=%s\n\n'     "$(printf '%q' "$CFG_GD_FOLDER_ID")"
+
+        printf '# Database\n'
+        printf 'CFG_DB_TYPE=%s\n'            "$CFG_DB_TYPE"
+        printf 'CFG_DB_ENGINE=%s\n'          "$CFG_DB_ENGINE"
+        printf 'CFG_DB_CONTAINER=%s\n'       "$(printf '%q' "$CFG_DB_CONTAINER")"
+        printf 'CFG_DB_USER=%s\n'            "$(printf '%q' "$CFG_DB_USER")"
+        printf 'CFG_DB_NAME=%s\n'            "$(printf '%q' "$CFG_DB_NAME")"
+        printf 'CFG_DB_PASS=%s\n'            "$(printf '%q' "$CFG_DB_PASS")"
+        printf 'CFG_DB_HOST=%s\n'            "$(printf '%q' "$CFG_DB_HOST")"
+        printf 'CFG_DB_PORT=%s\n'            "$CFG_DB_PORT"
+        printf 'CFG_DB_SSL=%s\n'             "$CFG_DB_SSL"
+        printf 'CFG_DB_PGVER=%s\n\n'         "$CFG_DB_PGVER"
+
+        printf '# Project\n'
+        printf 'CFG_PROJECT_NAME=%s\n'       "$(printf '%q' "$CFG_PROJECT_NAME")"
+        printf 'CFG_PROJECT_DIR=%s\n'        "$(printf '%q' "$CFG_PROJECT_DIR")"
+        printf 'CFG_PROJECT_ENV=%s\n'        "$(printf '%q' "$CFG_PROJECT_ENV")"
+        printf 'CFG_BACKUP_DIR=%s\n'         "$(printf '%q' "$CFG_BACKUP_DIR")"
+        printf 'CFG_RETENTION_DAYS=%s\n'     "$CFG_RETENTION_DAYS"
+        printf 'CFG_BACKUP_ENV=%s\n'         "$CFG_BACKUP_ENV"
+        printf 'CFG_BACKUP_DIR_ENABLED=%s\n' "$CFG_BACKUP_DIR_ENABLED"
+    } | (umask 077; cat > "${project_file}.tmp") && mv "${project_file}.tmp" "$project_file"
+    secure_file "$project_file"
+}
+
+load_project_config() {
+    local project_id="$1"
+    [[ "$project_id" == *".."* || "$project_id" == *"/"* ]] && return 1
+    local project_file
+    project_file="$(_project_file_path "$project_id")"
+    [[ -f "$project_file" ]] || return 1
+    # shellcheck source=/dev/null
+    source "$project_file"
+    CFG_PROJECT_ID="$project_id"
+    CFG_ACTIVE_PROJECT="$project_id"
+    return 0
+}
+
+_migrate_legacy_single_project() {
+    [[ -n "${CFG_ACTIVE_PROJECT:-}" ]] && return 0
+    if [[ -n "${CFG_PROJECT_NAME:-}" || -n "${CFG_PROJECT_DIR:-}" || "$CFG_DB_TYPE" != "none" ]]; then
+        local base id
+        base="$(_project_slug "${CFG_PROJECT_NAME:-backup}")"
+        id="$(_project_unique_id "$base")"
+        CFG_PROJECT_ID="$id"
+        CFG_ACTIVE_PROJECT="$id"
+        save_project_config "$id"
+        save_global_config "$CONFIG_FILE"
+    fi
+}
 
 # ─────────────────────────────────────────────
 # Загрузить конфиг из файла
 # ─────────────────────────────────────────────
 load_config() {
     local cfg_file="$1"
-    if [[ -f "$cfg_file" ]]; then
-        # Защита от path traversal: канонизировать путь и проверить отсутствие ..
-        if [[ "$cfg_file" == *".."* ]]; then
-            log_error "Путь к конфигу содержит '..': $cfg_file"
-            return 1
+    [[ -f "$cfg_file" ]] || return 0
+
+    if [[ "$cfg_file" == *".."* ]]; then
+        log_error "Путь к конфигу содержит '..': $cfg_file"
+        return 1
+    fi
+
+    local real_cfg
+    real_cfg=$(realpath "$cfg_file" 2>/dev/null) || {
+        log_error "Не удалось канонизировать путь к конфигу: $cfg_file"
+        return 1
+    }
+    if [[ ! -f "$real_cfg" ]]; then
+        log_error "Конфиг не является обычным файлом: $real_cfg"
+        return 1
+    fi
+
+    log_step "${L[cfg_loading]}"
+    # shellcheck source=/dev/null
+    source "$real_cfg"
+    log_info "${L[cfg_loaded]} $real_cfg"
+
+    # Позволяем фиксировать PROJECTS_DIR в конфиге, но если нет — оставляем текущий.
+    PROJECTS_DIR="${PROJECTS_DIR:-$(dirname "$CONFIG_FILE")/projects}"
+    ensure_runtime_dirs
+
+    _migrate_legacy_single_project
+
+    if [[ -n "${CFG_ACTIVE_PROJECT:-}" ]]; then
+        if ! load_project_config "$CFG_ACTIVE_PROJECT"; then
+            local fallback
+            fallback="$(list_project_ids | head -n1)"
+            if [[ -n "$fallback" ]]; then
+                load_project_config "$fallback"
+            fi
         fi
-        local real_cfg
-        real_cfg=$(realpath "$cfg_file" 2>/dev/null) || {
-            log_error "Не удалось канонизировать путь к конфигу: $cfg_file"
-            return 1
-        }
-        if [[ ! -f "$real_cfg" ]]; then
-            log_error "Конфиг не является обычным файлом: $real_cfg"
-            return 1
+    else
+        local first
+        first="$(list_project_ids | head -n1)"
+        if [[ -n "$first" ]]; then
+            load_project_config "$first"
         fi
-        log_step "${L[cfg_loading]}"
-        # shellcheck source=/dev/null
-        source "$real_cfg"
-        log_info "${L[cfg_loaded]} $real_cfg"
     fi
 }
 
 # ─────────────────────────────────────────────
-# Сохранить конфиг в файл
+# Сохранить конфиг (глобальный + активный проект)
 # ─────────────────────────────────────────────
 save_config() {
     local cfg_file="$1"
-    local dir; dir=$(dirname "$cfg_file")
-    mkdir -p "$dir" || { log_error "${L[cfg_install_fail]} $dir"; return 1; }
+    if [[ -z "${CFG_ACTIVE_PROJECT:-}" ]]; then
+        CFG_ACTIVE_PROJECT="$(_project_unique_id "$(_project_slug "${CFG_PROJECT_NAME:-backup}")")"
+    fi
+    CFG_PROJECT_ID="$CFG_ACTIVE_PROJECT"
+    ensure_runtime_dirs
 
     log_step "${L[saving_config]} $cfg_file"
-
-    # Записываем конфиг построчно через printf чтобы избежать раскрытия $, `` и $()
-    # внутри значений при использовании heredoc без кавычек вокруг маркера.
-    # Секреты (пароли, токены, ключи) экранируются через printf '%q' — результат
-    # всегда является корректным bash-значением при source.
-    {
-        printf '# Universal Backup — конфигурация\n'
-        printf '# Создан: %s\n\n' "$(date)"
-
-        printf 'CFG_VERSION=%s\n'    "$CFG_VERSION"
-        printf 'CFG_LANG=%s\n'       "$CFG_LANG"
-        printf 'CFG_AUTO_UPDATE=%s\n\n' "$CFG_AUTO_UPDATE"
-
-        printf '# Telegram\n'
-        printf 'CFG_BOT_TOKEN=%s\n'  "$(printf '%q' "$CFG_BOT_TOKEN")"
-        printf 'CFG_CHAT_ID=%s\n'    "$(printf '%q' "$CFG_CHAT_ID")"
-        printf 'CFG_THREAD_ID=%s\n'  "$(printf '%q' "$CFG_THREAD_ID")"
-        printf 'CFG_TG_PROXY=%s\n\n' "$(printf '%q' "$CFG_TG_PROXY")"
-
-        printf '# Способ отправки\n'
-        printf 'CFG_UPLOAD_METHOD=%s\n\n' "$CFG_UPLOAD_METHOD"
-
-        printf '# S3\n'
-        printf 'CFG_S3_ENDPOINT=%s\n'       "$(printf '%q' "$CFG_S3_ENDPOINT")"
-        printf 'CFG_S3_REGION=%s\n'         "$CFG_S3_REGION"
-        printf 'CFG_S3_BUCKET=%s\n'         "$(printf '%q' "$CFG_S3_BUCKET")"
-        printf 'CFG_S3_ACCESS_KEY=%s\n'     "$(printf '%q' "$CFG_S3_ACCESS_KEY")"
-        printf 'CFG_S3_SECRET_KEY=%s\n'     "$(printf '%q' "$CFG_S3_SECRET_KEY")"
-        printf 'CFG_S3_PREFIX=%s\n'         "$(printf '%q' "$CFG_S3_PREFIX")"
-        printf 'CFG_S3_RETENTION_DAYS=%s\n\n' "$CFG_S3_RETENTION_DAYS"
-
-        printf '# Google Drive\n'
-        printf 'CFG_GD_CLIENT_ID=%s\n'      "$(printf '%q' "$CFG_GD_CLIENT_ID")"
-        printf 'CFG_GD_CLIENT_SECRET=%s\n'  "$(printf '%q' "$CFG_GD_CLIENT_SECRET")"
-        printf 'CFG_GD_REFRESH_TOKEN=%s\n'  "$(printf '%q' "$CFG_GD_REFRESH_TOKEN")"
-        printf 'CFG_GD_FOLDER_ID=%s\n\n'   "$(printf '%q' "$CFG_GD_FOLDER_ID")"
-
-        printf '# База данных\n'
-        printf 'CFG_DB_TYPE=%s\n'      "$CFG_DB_TYPE"
-        printf 'CFG_DB_ENGINE=%s\n'    "$CFG_DB_ENGINE"
-        printf 'CFG_DB_CONTAINER=%s\n' "$(printf '%q' "$CFG_DB_CONTAINER")"
-        printf 'CFG_DB_USER=%s\n'      "$(printf '%q' "$CFG_DB_USER")"
-        printf 'CFG_DB_NAME=%s\n'      "$(printf '%q' "$CFG_DB_NAME")"
-        printf 'CFG_DB_PASS=%s\n'      "$(printf '%q' "$CFG_DB_PASS")"
-        printf 'CFG_DB_HOST=%s\n'      "$(printf '%q' "$CFG_DB_HOST")"
-        printf 'CFG_DB_PORT=%s\n'      "$CFG_DB_PORT"
-        printf 'CFG_DB_SSL=%s\n'       "$CFG_DB_SSL"
-        printf 'CFG_DB_PGVER=%s\n\n'   "$CFG_DB_PGVER"
-
-        printf '# Проект\n'
-        printf 'CFG_PROJECT_NAME=%s\n'        "$(printf '%q' "$CFG_PROJECT_NAME")"
-        printf 'CFG_PROJECT_DIR=%s\n'         "$(printf '%q' "$CFG_PROJECT_DIR")"
-        printf 'CFG_PROJECT_ENV=%s\n'         "$(printf '%q' "$CFG_PROJECT_ENV")"
-        printf 'CFG_BACKUP_DIR=%s\n'          "$(printf '%q' "$CFG_BACKUP_DIR")"
-        printf 'CFG_RETENTION_DAYS=%s\n'      "$CFG_RETENTION_DAYS"
-        printf 'CFG_BACKUP_ENV=%s\n'          "$CFG_BACKUP_ENV"
-        printf 'CFG_BACKUP_DIR_ENABLED=%s\n'  "$CFG_BACKUP_DIR_ENABLED"
-    } | (umask 077; cat > "${cfg_file}.tmp") && mv "${cfg_file}.tmp" "$cfg_file"
-    secure_file "$cfg_file"
+    save_global_config "$cfg_file" || return 1
+    save_project_config "$CFG_ACTIVE_PROJECT" || return 1
     log_info "${L[config_saved]}"
+}
+
+_configure_project_wizard() {
+    # Имя проекта
+    echo ""
+    read -rp "${L[cfg_project_name]}" CFG_PROJECT_NAME
+    [[ -z "$CFG_PROJECT_NAME" ]] && CFG_PROJECT_NAME="backup"
+
+    # Директория проекта
+    while true; do
+        CFG_PROJECT_DIR=$(input_path "${L[cfg_project_dir]}" false)
+        if [[ -d "$CFG_PROJECT_DIR" ]]; then
+            break
+        else
+            log_warn "${L[cfg_dir_missing]}"
+            confirm "${L[cfg_continue_path]}" && break
+        fi
+    done
+
+    # .env файл
+    echo ""
+    CFG_PROJECT_ENV=$(input_path "${L[cfg_project_env]}" true)
+    if [[ -z "$CFG_PROJECT_ENV" ]]; then
+        CFG_BACKUP_ENV="false"
+    else
+        CFG_BACKUP_ENV="true"
+    fi
+
+    CFG_BACKUP_DIR="${DEFAULT_BACKUP_DIR}"
+
+    # БД
+    setup_db_wizard
+
+    # Способ отправки
+    setup_upload_method_wizard
 }
 
 # ─────────────────────────────────────────────
@@ -1637,36 +1919,12 @@ initial_setup() {
         log_warn "${L[cfg_tg_not_configured]}"
     fi
 
-    # Имя проекта
-    echo ""
-    read -rp "${L[cfg_project_name]}" CFG_PROJECT_NAME
-    [[ -z "$CFG_PROJECT_NAME" ]] && CFG_PROJECT_NAME="backup"
+    reset_project_profile_defaults
+    _configure_project_wizard
 
-    # Директория проекта
-    while true; do
-        CFG_PROJECT_DIR=$(input_path "${L[cfg_project_dir]}" false)
-        if [[ -d "$CFG_PROJECT_DIR" ]]; then
-            break
-        else
-            log_warn "${L[cfg_dir_missing]}"
-            confirm "${L[cfg_continue_path]}" && break
-        fi
-    done
+    CFG_ACTIVE_PROJECT="$(_project_unique_id "$(_project_slug "$CFG_PROJECT_NAME")")"
+    CFG_PROJECT_ID="$CFG_ACTIVE_PROJECT"
 
-    # .env файл
-    echo ""
-    CFG_PROJECT_ENV=$(input_path "${L[cfg_project_env]}" true)
-    if [[ -z "$CFG_PROJECT_ENV" ]]; then
-        CFG_BACKUP_ENV="false"
-    fi
-
-    # БД
-    setup_db_wizard
-
-    # Способ отправки
-    setup_upload_method_wizard
-
-    # Сохранить
     save_config "$cfg_file"
     echo ""
     log_info "${L[cfg_new_saved]} $cfg_file"
@@ -2494,6 +2752,10 @@ db_test_connection() {
 # Основная функция создания бэкапа
 # ─────────────────────────────────────────────
 do_backup() {
+    if [[ -z "${CFG_PROJECT_NAME:-}" ]]; then
+        log_error "Активный проект не выбран. Откройте настройки проекта и выберите профиль."
+        return 1
+    fi
     local ts; ts=$(timestamp)
     local archive_name="${CFG_PROJECT_NAME}_${ts}.tar.gz"
     local backup_dir="$CFG_BACKUP_DIR"
@@ -2961,7 +3223,7 @@ ${L[tg_date]} <code>$(date '+%Y-%m-%d %H:%M:%S')</code>"
 # Управление cron-расписанием автоматического бэкапа
 
 # Вычисляется лениво, после загрузки конфига
-_cron_marker() { echo "# universal-backup: ${CFG_PROJECT_NAME:-backup}"; }
+_cron_marker() { echo "# universal-backup: ${CFG_ACTIVE_PROJECT:-default}"; }
 
 # ─────────────────────────────────────────────
 # Меню настройки cron
@@ -3063,11 +3325,12 @@ _install_cron() {
     local cron_expr="$1"
     local script_path; script_path=$(realpath "$BACKUP_SCRIPT" 2>/dev/null || echo "$BACKUP_SCRIPT")
     local marker; marker=$(_cron_marker)
+    local project_arg="${CFG_ACTIVE_PROJECT:-default}"
     # cron_expr может содержать несколько строк (по одной на каждое время)
     local cron_lines=""
     while IFS= read -r expr_line; do
         [[ -z "$expr_line" ]] && continue
-        cron_lines+="${expr_line} ${script_path} backup ${marker}"$'\n'
+        cron_lines+="${expr_line} ${script_path} --project ${project_arg} backup ${marker}"$'\n'
     done <<< "$cron_expr"
 
     log_step "${L[cron_setting]}"
@@ -3478,14 +3741,181 @@ _settings_db() {
 # ─────────────────────────────────────────────
 # Настройки проекта
 # ─────────────────────────────────────────────
+_settings_projects_list() {
+    local active="${CFG_ACTIVE_PROJECT:-$CFG_PROJECT_ID}"
+    local id name marker
+    local has_any=false
+
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        has_any=true
+        name="$(project_display_name "$id")"
+        marker=" "
+        [[ "$id" == "$active" ]] && marker="*"
+        echo "  [$marker] ${name} (${id})"
+    done < <(list_project_ids)
+
+    if [[ "$has_any" != "true" ]]; then
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            log_warn "Проекты не найдены."
+        else
+            log_warn "No projects found."
+        fi
+    fi
+}
+
+_settings_projects_switch() {
+    local ids=()
+    local id
+    while IFS= read -r id; do
+        [[ -n "$id" ]] && ids+=("$id")
+    done < <(list_project_ids)
+
+    if [[ ${#ids[@]} -eq 0 ]]; then
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            log_warn "Проекты не найдены."
+        else
+            log_warn "No projects found."
+        fi
+        return
+    fi
+
+    echo ""
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        echo "Список проектов:"
+    else
+        echo "Project list:"
+    fi
+    local i=1
+    for id in "${ids[@]}"; do
+        local name
+        name="$(project_display_name "$id")"
+        echo "  $i. ${name} (${id})"
+        ((i++))
+    done
+    echo "  0. ${L[back]}"
+
+    local choice
+    read -rp "${L[select_option]}" choice
+    [[ "$choice" == "0" ]] && return
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#ids[@]} )); then
+        log_warn "${L[invalid_input_select]}"
+        return
+    fi
+
+    local target="${ids[$((choice - 1))]}"
+    if switch_active_project "$target"; then
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            log_info "Активный проект: $(project_display_name "$target") (${target})"
+        else
+            log_info "Active project: $(project_display_name "$target") (${target})"
+        fi
+    else
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            log_error "Не удалось переключить проект."
+        else
+            log_error "Failed to switch project."
+        fi
+    fi
+}
+
+_settings_projects_add() {
+    reset_project_profile_defaults
+    _configure_project_wizard
+
+    local new_id
+    new_id="$(_project_unique_id "$(_project_slug "${CFG_PROJECT_NAME:-backup}")")"
+    CFG_ACTIVE_PROJECT="$new_id"
+    CFG_PROJECT_ID="$new_id"
+
+    if save_config "$CONFIG_FILE"; then
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            log_info "Проект добавлен: ${CFG_PROJECT_NAME} (${new_id})"
+        else
+            log_info "Project added: ${CFG_PROJECT_NAME} (${new_id})"
+        fi
+    fi
+}
+
+_settings_projects_delete() {
+    local ids=()
+    local id
+    while IFS= read -r id; do
+        [[ -n "$id" ]] && ids+=("$id")
+    done < <(list_project_ids)
+
+    if (( ${#ids[@]} <= 1 )); then
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            log_warn "Нельзя удалить единственный проект."
+        else
+            log_warn "Cannot remove the only project."
+        fi
+        return
+    fi
+
+    echo ""
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        echo "Выберите проект для удаления:"
+    else
+        echo "Select project to delete:"
+    fi
+    local i=1
+    for id in "${ids[@]}"; do
+        local name
+        name="$(project_display_name "$id")"
+        echo "  $i. ${name} (${id})"
+        ((i++))
+    done
+    echo "  0. ${L[back]}"
+
+    local choice
+    read -rp "${L[select_option]}" choice
+    [[ "$choice" == "0" ]] && return
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#ids[@]} )); then
+        log_warn "${L[invalid_input_select]}"
+        return
+    fi
+
+    local target="${ids[$((choice - 1))]}"
+    local target_name
+    target_name="$(project_display_name "$target")"
+
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        confirm "Удалить проект '${target_name}' (${target})?" || return
+    else
+        confirm "Delete project '${target_name}' (${target})?" || return
+    fi
+
+    rm -f "$(_project_file_path "$target")"
+
+    if [[ "$CFG_ACTIVE_PROJECT" == "$target" ]]; then
+        local next
+        next="$(list_project_ids | head -n1)"
+        if [[ -n "$next" ]]; then
+            load_project_config "$next" || true
+            CFG_ACTIVE_PROJECT="$next"
+            CFG_PROJECT_ID="$next"
+        fi
+    fi
+
+    save_global_config "$CONFIG_FILE"
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        log_info "Проект удалён."
+    else
+        log_info "Project removed."
+    fi
+}
+
 _settings_project() {
     while true; do
         echo ""
         echo -e "${BOLD}${L[st_project_title]}${NC}"
         echo "────────────────────────────────"
+        echo "  ID: ${CFG_ACTIVE_PROJECT:-${L[not_set]}}"
         echo "  ${L[st_project_name]} ${CFG_PROJECT_NAME:-${L[not_set]}}"
         echo "  ${L[st_project_dir]}  ${CFG_PROJECT_DIR:-${L[not_set]}}"
         echo "  ${L[st_project_env]}  ${CFG_PROJECT_ENV:-${L[not_set]}}"
+        echo "  ${L[menu_shortcut]} backrest --project ${CFG_ACTIVE_PROJECT:-default} backup"
         echo ""
         echo "  1. ${L[st_project_change_name]}"
         echo "  2. ${L[st_project_change_dir]}"
@@ -3499,6 +3929,17 @@ _settings_project() {
             echo "  5. ${L[st_project_disable_env]}"
         else
             echo "  5. ${L[st_project_enable_env]}"
+        fi
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            echo "  6. Переключить активный проект"
+            echo "  7. Добавить новый проект"
+            echo "  8. Удалить проект"
+            echo "  9. Список проектов"
+        else
+            echo "  6. Switch active project"
+            echo "  7. Add new project"
+            echo "  8. Remove project"
+            echo "  9. List projects"
         fi
         echo "  0. ${L[back]}"
         echo "────────────────────────────────"
@@ -3527,9 +3968,14 @@ _settings_project() {
                     CFG_BACKUP_ENV="true"; log_info "${L[st_project_env_enabled]}"
                 fi
                 ;;
+            6) _settings_projects_switch ;;
+            7) _settings_projects_add ;;
+            8) _settings_projects_delete ;;
+            9) _settings_projects_list; press_enter ;;
             0) return ;;
             *) log_warn "${L[invalid_input_select]}" ;;
         esac
+        save_config "$CONFIG_FILE"
     done
 }
 
@@ -3620,7 +4066,7 @@ do_remove() {
     echo ""
     echo -e "${RED}${BOLD}${L[rm_warn]}${NC}"
     echo "  - ${L[rm_script]}: $BACKUP_SCRIPT"
-    echo "  - ${L[rm_dir]}: $(dirname "$BACKUP_SCRIPT")"
+    echo "  - ${L[rm_dir]}: ${BACKREST_HOME}"
     echo "  - ${L[rm_symlink]}"
     echo "  - ${L[rm_cron]}"
     echo ""
@@ -3644,17 +4090,23 @@ do_remove() {
     fi
 
     # Symlink
-    local symlink="/usr/local/bin/backup"
-    if [[ -L "$symlink" ]]; then
-        log_step "${L[rm_symlink_removing]}"
-        rm -f "$symlink" && log_info "${L[rm_symlink_removed]}" || log_warn "${L[rm_symlink_fail]}"
+    local symlink
+    for symlink in /usr/local/bin/backup /usr/local/bin/backrest; do
+        if [[ -L "$symlink" ]]; then
+            log_step "${L[rm_symlink_removing]} $symlink"
+            rm -f "$symlink" && log_info "${L[rm_symlink_removed]}" || log_warn "${L[rm_symlink_fail]}"
+        fi
+    done
+
+    # Файл скрипта
+    if [[ -f "$BACKUP_SCRIPT" ]]; then
+        rm -f "$BACKUP_SCRIPT" 2>/dev/null || true
     fi
 
-    # Директория установки
-    local install_dir; install_dir=$(dirname "$BACKUP_SCRIPT")
-    if [[ -d "$install_dir" ]]; then
+    # Рабочая директория скрипта
+    if [[ -n "${BACKREST_HOME:-}" && "$BACKREST_HOME" != "/" && -d "$BACKREST_HOME" ]]; then
         log_step "${L[rm_dir_removing]}"
-        rm -rf "$install_dir" && log_info "${install_dir} ${L[rm_dir_removed]}" || log_error "${L[rm_dir_fail]}"
+        rm -rf "$BACKREST_HOME" && log_info "${BACKREST_HOME} ${L[rm_dir_removed]}" || log_error "${L[rm_dir_fail]}"
     fi
 
     echo ""
@@ -3673,31 +4125,47 @@ load_language "en"
 # ─────────────────────────────────────────────
 # Загрузить или создать конфиг
 # ─────────────────────────────────────────────
+ensure_runtime_dirs
 if [[ -f "$CONFIG_FILE" ]]; then
     load_config "$CONFIG_FILE"
     load_language "$CFG_LANG"
 else
+    if [[ -n "$COMMAND" ]]; then
+        log_error "Конфигурация не найдена: $CONFIG_FILE. Сначала выполните интерактивную настройку."
+        exit 1
+    fi
     # Первый запуск — wizard
     initial_setup "$CONFIG_FILE"
     load_language "$CFG_LANG"
+fi
+
+# Явный выбор проекта через CLI (без изменения сохраненного активного профиля)
+if [[ -n "$CLI_PROJECT" ]]; then
+    if ! activate_project_by_selector "$CLI_PROJECT" false; then
+        log_error "Проект '$CLI_PROJECT' не найден."
+        exit 1
+    fi
 fi
 
 # Создать директорию для бэкапов если не существует
 mkdir -p "$CFG_BACKUP_DIR" 2>/dev/null || true
 
 # ─────────────────────────────────────────────
-# Настроить symlink /usr/local/bin/backup
+# Настроить symlink /usr/local/bin/{backup,backrest}
 # ─────────────────────────────────────────────
-_setup_symlink() {
-    local symlink="/usr/local/bin/backup"
+_setup_symlinks() {
+    local target="$BACKUP_SCRIPT"
+    local symlink
     [[ $EUID -ne 0 ]] && return
-    if [[ ! -L "$symlink" ]] || [[ "$(readlink "$symlink")" != "$BACKUP_SCRIPT" ]]; then
-        if ln -sf "$BACKUP_SCRIPT" "$symlink" 2>/dev/null; then
-            log_info "${L[symlink_created]} ($symlink → $BACKUP_SCRIPT)"
+    for symlink in /usr/local/bin/backup /usr/local/bin/backrest; do
+        if [[ ! -L "$symlink" ]] || [[ "$(readlink "$symlink")" != "$target" ]]; then
+            if ln -sf "$target" "$symlink" 2>/dev/null; then
+                log_info "${L[symlink_created]} ($symlink → $target)"
+            fi
         fi
-    fi
+    done
 }
-_setup_symlink
+_setup_symlinks
 
 # Фоновая проверка обновлений
 check_update_bg &
@@ -3732,7 +4200,7 @@ _main_menu() {
         echo ""
 
         # Статус
-        echo -e "  ${L[menu_project]} ${CYAN}${CFG_PROJECT_NAME:-${L[not_set]}}${NC}"
+        echo -e "  ${L[menu_project]} ${CYAN}${CFG_PROJECT_NAME:-${L[not_set]}}${NC} (${CFG_ACTIVE_PROJECT:-default})"
         case "$CFG_DB_TYPE" in
             docker)   echo -e "  ${L[menu_db_docker]} (${CFG_DB_ENGINE})" ;;
             external) echo -e "  ${L[menu_db_ext]} (${CFG_DB_ENGINE}@${CFG_DB_HOST})" ;;
@@ -3752,7 +4220,7 @@ _main_menu() {
         echo "  7. ${L[menu_remove]}"
         echo "  0. ${L[exit]}"
         echo "────────────────────────────────────────────"
-        [[ -n "$BACKUP_SCRIPT" ]] && echo -e "  ${L[menu_shortcut]} ${CYAN}backup${NC}"
+        [[ -n "$BACKUP_SCRIPT" ]] && echo -e "  ${L[menu_shortcut]} ${CYAN}backrest${NC}"
         echo ""
         read -rp "${L[select_option]}" choice
 
