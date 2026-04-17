@@ -2,7 +2,7 @@
 
 # Universal Backup & Restore
 
-**Один скрипт для бэкапа любого проекта на VPS**
+**Один скрипт для бэкапа нескольких проектов на VPS**
 
 PostgreSQL / MySQL / MongoDB | Docker / External DB | S3 / Telegram / Google Drive
 
@@ -21,7 +21,20 @@ curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backu
   && ~/backup-restore.sh
 ```
 
-При первом запуске откроется мастер настройки — язык, Telegram, проект, БД, способ отправки. Конфиг сохраняется в `backup.cfg` рядом со скриптом.
+При первом запуске откроется мастер: язык, Telegram, первый проект, БД, способ отправки.
+
+Скрипт сам создаёт рабочую структуру:
+
+- Для `root`: `/var/lib/universal-backup/`
+- Для обычного пользователя: `~/.local/share/universal-backup/`
+- Глобальный конфиг: `.../config/backup.cfg`
+- Профили проектов: `.../config/projects/*.cfg`
+- Локальные архивы: `.../backups/`
+
+Если запуск под `root`, автоматически создаются ссылки:
+
+- `/usr/local/bin/backrest`
+- `/usr/local/bin/backup` (обратная совместимость)
 
 ---
 
@@ -29,6 +42,7 @@ curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backu
 
 | | Поддержка |
 |---|---|
+| **Проекты** | Несколько независимых профилей, переключение/добавление/удаление из меню |
 | **Базы данных** | PostgreSQL, MySQL / MariaDB, MongoDB |
 | **Подключение к БД** | Docker-контейнер или внешний хост |
 | **Что бэкапится** | Дамп БД + `.env` + директория проекта (каждый пункт опционален) |
@@ -46,19 +60,40 @@ curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backu
 
 ```bash
 # Интерактивное меню
-~/backup-restore.sh
+backrest
 
-# Создать бэкап (для cron, без меню)
-~/backup-restore.sh backup
+# Создать бэкап активного проекта (без меню)
+backrest backup
 
 # Восстановление
-~/backup-restore.sh restore
+backrest restore
 
-# Указать другой конфиг
-~/backup-restore.sh --config /opt/myproject/backup.cfg
+# Создать бэкап конкретного проекта
+backrest --project project_id backup
+
+# Использовать другой глобальный конфиг
+backrest --config /opt/universal-backup/config/backup.cfg
 ```
 
-> При наличии прав root создаётся симлинк `/usr/local/bin/backup` — запуск из любого места командой `backup`.
+> `backup` тоже работает, но рекомендуем основной алиас `backrest`.
+
+---
+
+## Мультипроектный режим
+
+Управление через меню:
+
+`Настройка конфигурации` → `Настройки проекта`
+
+Доступно:
+
+- Редактирование активного проекта
+- Переключение активного проекта
+- Добавление нового проекта
+- Удаление проекта
+- Список всех проектов
+
+Идентификатор активного проекта отображается в главном меню и используется в cron-командах.
 
 ---
 
@@ -78,7 +113,7 @@ curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backu
 
 Каждый бэкап — `.tar.gz` архив:
 
-```
+```text
 myproject_2026-04-17_03-00-00.tar.gz
 ├── backup_meta.json       # метаданные (проект, версия, timestamp)
 ├── db_dump.dump           # PostgreSQL (.sql для MySQL, .archive для MongoDB)
@@ -86,7 +121,7 @@ myproject_2026-04-17_03-00-00.tar.gz
 └── project_dir.tar.gz     # архив директории проекта
 ```
 
-Любой компонент может отсутствовать в зависимости от настроек.
+Любой компонент может отсутствовать в зависимости от настроек проекта.
 
 ---
 
@@ -117,7 +152,7 @@ myproject_2026-04-17_03-00-00.tar.gz
 
 ---
 
-## Автоматический бэкап
+## Автоматический бэкап (cron)
 
 Настройка через меню `Настройка расписания` (требует root).
 
@@ -126,11 +161,11 @@ myproject_2026-04-17_03-00-00.tar.gz
 | Ежечасно | `0 * * * *` |
 | Ежедневно | Одно или несколько времён UTC |
 
-Пример для бэкапа в 03:00 и 15:00 UTC:
+Скрипт создаёт cron-записи с привязкой к активному проекту:
 
-```
-0 3 * * * /root/backup-restore.sh backup
-0 15 * * * /root/backup-restore.sh backup
+```text
+0 3 * * * /usr/local/bin/backrest --project support backup # universal-backup: support
+0 15 * * * /usr/local/bin/backrest --project support backup # universal-backup: support
 ```
 
 ---
@@ -138,12 +173,13 @@ myproject_2026-04-17_03-00-00.tar.gz
 ## Восстановление
 
 ```bash
-~/backup-restore.sh restore
+backrest restore
 ```
 
 Источники:
-- **Локальные файлы** — из директории бэкапов
-- **S3** — скачивает выбранный архив
+
+- Локальные файлы из директории бэкапов
+- S3 (скачивает выбранный архив)
 
 При восстановлении скрипт интерактивно спрашивает что восстанавливать: БД, `.env`, директорию проекта — каждый пункт отдельно, с выбором пути.
 
@@ -151,33 +187,54 @@ myproject_2026-04-17_03-00-00.tar.gz
 
 ## Конфигурация
 
-Файл `backup.cfg` создаётся мастером, редактируется через меню или вручную. Права `600`.
+Схема хранения:
+
+- **Глобальный конфиг**: язык, Telegram, автообновление, активный проект
+- **Конфиг проекта**: БД, пути проекта, S3/GDrive, retention и т.д.
+
+Права на файлы конфигурации — `600`.
 
 <details>
-<summary>Пример конфигурации</summary>
+<summary>Пример глобального конфига (<code>config/backup.cfg</code>)</summary>
 
 ```bash
-CFG_PROJECT_NAME=myproject
-CFG_PROJECT_DIR=/opt/myproject
-CFG_PROJECT_ENV=/opt/myproject/.env
-CFG_BACKUP_DIR=/var/backups/universal-backup
-CFG_RETENTION_DAYS=30
-
-CFG_DB_TYPE=docker          # none | docker | external
-CFG_DB_ENGINE=postgres      # postgres | mysql | mongodb
-CFG_DB_CONTAINER=myproject_db
-CFG_DB_USER=postgres
-CFG_DB_NAME=myproject
-
-CFG_UPLOAD_METHOD=s3        # telegram | s3 | google_drive
-
-CFG_S3_ENDPOINT=https://s3.timeweb.cloud
-CFG_S3_BUCKET=my-backups
-CFG_S3_PREFIX=myproject/
-CFG_S3_RETENTION_DAYS=30
+CFG_VERSION=1.0.0
+CFG_LANG=ru
+CFG_AUTO_UPDATE=true
+CFG_ACTIVE_PROJECT=support
+PROJECTS_DIR=/var/lib/universal-backup/config/projects
 
 CFG_BOT_TOKEN=123456:ABC...
 CFG_CHAT_ID=-100...
+CFG_THREAD_ID=''
+CFG_TG_PROXY=''
+```
+
+</details>
+
+<details>
+<summary>Пример профиля проекта (<code>config/projects/support.cfg</code>)</summary>
+
+```bash
+CFG_PROJECT_NAME=support
+CFG_PROJECT_DIR=/opt/support
+CFG_PROJECT_ENV=/opt/support/.env
+CFG_BACKUP_DIR=/var/lib/universal-backup/backups
+CFG_RETENTION_DAYS=30
+CFG_BACKUP_ENV=true
+CFG_BACKUP_DIR_ENABLED=true
+
+CFG_DB_TYPE=docker          # none | docker | external
+CFG_DB_ENGINE=postgres      # postgres | mysql | mongodb
+CFG_DB_CONTAINER=postgres
+CFG_DB_USER=postgres
+CFG_DB_NAME=support
+
+CFG_UPLOAD_METHOD=s3        # telegram | s3 | google_drive
+CFG_S3_ENDPOINT=https://s3.timeweb.cloud
+CFG_S3_BUCKET=my-backups
+CFG_S3_PREFIX=support/
+CFG_S3_RETENTION_DAYS=30
 ```
 
 </details>
