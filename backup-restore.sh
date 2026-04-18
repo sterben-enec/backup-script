@@ -895,7 +895,7 @@ L[menu_tab_service]="Service"
 L[menu_tab_current]="Current tab:"
 L[menu_tab_prev]="Previous tab"
 L[menu_tab_next]="Next tab"
-L[menu_tip_tabs]="Tip: use 8/9 to switch tabs"
+L[menu_tip_tabs]="Tip: use left/right arrow keys to switch tabs"
 L[menu_tip_actions]="Actions in this tab:"
 L[menu_tip_shortcut]="CLI shortcut:"
 L[menu_tab_quick_settings]="Quick settings"
@@ -1499,7 +1499,7 @@ L[menu_tab_service]="Сервис"
 L[menu_tab_current]="Текущая вкладка:"
 L[menu_tab_prev]="Предыдущая вкладка"
 L[menu_tab_next]="Следующая вкладка"
-L[menu_tip_tabs]="Подсказка: используйте 8/9 для переключения вкладок"
+L[menu_tip_tabs]="Подсказка: используйте стрелки влево/вправо для переключения вкладок"
 L[menu_tip_actions]="Действия во вкладке:"
 L[menu_tip_shortcut]="CLI-команда:"
 L[menu_tab_quick_settings]="Быстрые настройки"
@@ -3285,6 +3285,7 @@ cron_menu() {
     fi
 
     while true; do
+        clear
         echo ""
         echo -e "${BOLD}${L[cron_title]}${NC}"
         echo "────────────────────────────────"
@@ -3557,6 +3558,7 @@ check_update_bg() {
 
 settings_menu() {
     while true; do
+        clear
         echo ""
         echo -e "${BOLD}${L[st_title]}${NC}"
         echo "────────────────────────────────"
@@ -3592,6 +3594,7 @@ settings_menu() {
 # ─────────────────────────────────────────────
 _settings_telegram() {
     while true; do
+        clear
         echo ""
         echo -e "${BOLD}${L[st_tg_title]}${NC}"
         echo "────────────────────────────────"
@@ -3640,6 +3643,7 @@ _settings_telegram() {
 # ─────────────────────────────────────────────
 _settings_s3() {
     while true; do
+        clear
         echo ""
         echo -e "${BOLD}${L[st_s3_title]}${NC}"
         echo "────────────────────────────────"
@@ -3681,6 +3685,7 @@ _settings_s3() {
 # ─────────────────────────────────────────────
 _settings_gd() {
     while true; do
+        clear
         echo ""
         echo -e "${BOLD}${L[st_gd_title]}${NC}"
         echo "────────────────────────────────"
@@ -3714,6 +3719,7 @@ _settings_gd() {
 # ─────────────────────────────────────────────
 _settings_db() {
     while true; do
+        clear
         echo ""
         echo -e "${BOLD}${L[st_db_title]}${NC}"
         echo "────────────────────────────────"
@@ -3957,6 +3963,7 @@ _settings_projects_delete() {
 
 _settings_project() {
     while true; do
+        clear
         echo ""
         echo -e "${BOLD}${L[st_project_title]}${NC}"
         echo "────────────────────────────────"
@@ -4033,6 +4040,7 @@ _settings_project() {
 # ─────────────────────────────────────────────
 _settings_retention() {
     while true; do
+        clear
         echo ""
         echo -e "${BOLD}${L[st_retention_title]}${NC}"
         echo "────────────────────────────────"
@@ -4065,6 +4073,7 @@ _settings_retention() {
 # Язык
 # ─────────────────────────────────────────────
 _settings_lang() {
+    clear
     echo ""
     echo "${L[st_lang_current]} $CFG_LANG"
     echo ""
@@ -4084,6 +4093,7 @@ _settings_lang() {
 # Автообновление
 # ─────────────────────────────────────────────
 _settings_autoupdate() {
+    clear
     echo ""
     echo "${L[st_auto_update_status]} $( [[ "$CFG_AUTO_UPDATE" == "true" ]] && echo "${L[st_auto_update_on]}" || echo "${L[st_auto_update_off]}" )"
     echo ""
@@ -4282,7 +4292,6 @@ _render_main_header() {
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${tab_ops}  ${tab_cfg}  ${tab_srv}"
-    echo -e "  ${L[menu_tab_current]} ${YELLOW}$(_tab_title "$current_tab")${NC}"
     echo ""
 }
 
@@ -4301,6 +4310,7 @@ _render_main_status() {
 
 _menu_choose_upload_method() {
     local ul_choice
+    clear
     echo ""
     echo "${L[ul_title]}"
     echo "  ${L[ul_current]} ${CFG_UPLOAD_METHOD}"
@@ -4348,12 +4358,43 @@ _render_tab_menu() {
             ;;
     esac
 
-    echo "  8. ${L[menu_tab_prev]}"
-    echo "  9. ${L[menu_tab_next]}"
     echo "  0. ${L[exit]}"
     echo "────────────────────────────────────────────────────────────────"
     [[ -n "$BACKUP_SCRIPT" ]] && echo -e "  ${L[menu_tip_shortcut]} ${CYAN}backrest --project ${CFG_ACTIVE_PROJECT:-default} backup${NC}"
     echo ""
+}
+
+_read_main_menu_choice() {
+    local key seq
+    printf "%s" "${L[select_option]}"
+
+    IFS= read -rn1 key || { echo ""; return 1; }
+
+    if [[ "$key" == $'\e' ]]; then
+        IFS= read -rn2 -t 0.05 seq || true
+        echo ""
+        case "$seq" in
+            "[D") echo "__TAB_PREV" ;; # Left arrow
+            "[C") echo "__TAB_NEXT" ;; # Right arrow
+            *) echo "" ;;
+        esac
+        return 0
+    fi
+
+    if [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
+        echo ""
+        echo ""
+        return 0
+    fi
+
+    if [[ "$key" =~ [0-9] ]]; then
+        echo ""
+        echo "$key"
+        return 0
+    fi
+
+    echo ""
+    echo "$key"
 }
 
 _main_menu() {
@@ -4365,11 +4406,11 @@ _main_menu() {
         _render_main_header "$current_tab"
         _render_main_status
         _render_tab_menu "$current_tab"
-        read -rp "${L[select_option]}" choice
+        choice="$(_read_main_menu_choice)"
 
         case "$choice" in
-            8) current_tab="$(_prev_main_tab "$current_tab")"; continue ;;
-            9) current_tab="$(_next_main_tab "$current_tab")"; continue ;;
+            __TAB_PREV) current_tab="$(_prev_main_tab "$current_tab")"; continue ;;
+            __TAB_NEXT) current_tab="$(_next_main_tab "$current_tab")"; continue ;;
             0) echo "${L[exit_dots]}"; exit 0 ;;
         esac
 
