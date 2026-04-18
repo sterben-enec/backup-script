@@ -4369,38 +4369,52 @@ _read_main_menu_choice() {
     MAIN_MENU_CHOICE=""
     printf "%s" "${L[select_option]}"
 
-    IFS= read -rn1 key || return 1
+    while true; do
+        IFS= read -rsn1 key || return 1
 
-    if [[ "$key" == $'\e' ]]; then
-        seq=""
-        # Поддержка разных терминалов: ESC [ D/C и ESC O D/C
-        while IFS= read -rn1 -t 0.05 key; do
-            seq+="$key"
-            [[ "$key" =~ [A-Za-z~] ]] && break
-        done
-        echo ""
-        case "$seq" in
-            "[D"|"OD") MAIN_MENU_CHOICE="__TAB_PREV" ;; # Left arrow
-            "[C"|"OC") MAIN_MENU_CHOICE="__TAB_NEXT" ;; # Right arrow
-            *) MAIN_MENU_CHOICE="" ;;
-        esac
-        return 0
-    fi
+        if [[ "$key" == $'\e' ]]; then
+            seq=""
+            # Поддержка разных терминалов: ESC [D/[C, ESC OD/OC, keypad ESC O{p..y}
+            while IFS= read -rsn1 -t 0.05 key; do
+                seq+="$key"
+                [[ "$key" =~ [A-Za-z~] ]] && break
+            done
+            case "$seq" in
+                "[D"|"OD")
+                    echo ""
+                    MAIN_MENU_CHOICE="__TAB_PREV"
+                    return 0
+                    ;;
+                "[C"|"OC")
+                    echo ""
+                    MAIN_MENU_CHOICE="__TAB_NEXT"
+                    return 0
+                    ;;
+                "Op") echo ""; MAIN_MENU_CHOICE="0"; return 0 ;;
+                "Oq") echo ""; MAIN_MENU_CHOICE="1"; return 0 ;;
+                "Or") echo ""; MAIN_MENU_CHOICE="2"; return 0 ;;
+                "Os") echo ""; MAIN_MENU_CHOICE="3"; return 0 ;;
+                "Ot") echo ""; MAIN_MENU_CHOICE="4"; return 0 ;;
+                "Ou") echo ""; MAIN_MENU_CHOICE="5"; return 0 ;;
+                "Ov") echo ""; MAIN_MENU_CHOICE="6"; return 0 ;;
+                "Ow") echo ""; MAIN_MENU_CHOICE="7"; return 0 ;;
+                "Ox") echo ""; MAIN_MENU_CHOICE="8"; return 0 ;;
+                "Oy") echo ""; MAIN_MENU_CHOICE="9"; return 0 ;;
+                *)
+                    # Игнорируем неизвестные escape-последовательности.
+                    continue
+                    ;;
+            esac
+        fi
 
-    if [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
-        echo ""
-        MAIN_MENU_CHOICE=""
-        return 0
-    fi
+        if [[ "$key" =~ [0-9] ]]; then
+            echo ""
+            MAIN_MENU_CHOICE="$key"
+            return 0
+        fi
 
-    if [[ "$key" =~ [0-9] ]]; then
-        echo ""
-        MAIN_MENU_CHOICE="$key"
-        return 0
-    fi
-
-    echo ""
-    MAIN_MENU_CHOICE="$key"
+        # Enter и любые прочие клавиши игнорируем.
+    done
 }
 
 _main_menu() {
