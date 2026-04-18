@@ -1,6 +1,6 @@
-# Universal Backup & Restore
+# Backup & Restore
 
-Один скрипт для бэкапа нескольких проектов на VPS
+Один скрипт для бэкапа нескольких проектов
 
 PostgreSQL / MySQL / MongoDB | Docker / External DB | S3 / Telegram / Google Drive
 
@@ -233,12 +233,6 @@ CFG_S3_RETENTION_DAYS=30
 Через меню → **Обновление скрипта** (требует root).
 
 Скрипт проверяет версию на GitHub, предлагает обновиться, создаёт резервную копию текущего файла и заменяет его. При ошибке автоматически откатывается.
-
----
-
-## Вдохновлено
-
-[distillium/remnawave-backup-restore](https://github.com/distillium/remnawave-backup-restore) — отличный скрипт для Remnawave. Universal Backup — это его идея, расширенная до универсального инструмента для любого проекта.
 
 ---
 

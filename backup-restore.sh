@@ -45,6 +45,7 @@ unset _PRECHECK_COMMAND _PRECHECK_HELP _arg
 BACKUP_SCRIPT="$(realpath "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname "$BACKUP_SCRIPT")"
 SCRIPT_VERSION="$(grep -m1 '^# VERSION=' "$BACKUP_SCRIPT" | cut -d= -f2)"
+SCRIPT_AUTHOR="${SCRIPT_AUTHOR:-sterben-enec}"
 
 # Рабочие директории по умолчанию (самодостаточный режим)
 if [[ $EUID -eq 0 ]]; then
@@ -887,6 +888,24 @@ L[menu_settings]="Configuration"
 L[menu_update]="Update script"
 L[menu_remove]="Remove script"
 L[menu_shortcut]="Quick launch:"
+L[menu_author]="Author:"
+L[menu_tab_ops]="Operations"
+L[menu_tab_config]="Configuration"
+L[menu_tab_service]="Service"
+L[menu_tab_current]="Current tab:"
+L[menu_tab_prev]="Previous tab"
+L[menu_tab_next]="Next tab"
+L[menu_tip_tabs]="Tip: use 8/9 to switch tabs"
+L[menu_tip_actions]="Actions in this tab:"
+L[menu_tip_shortcut]="CLI shortcut:"
+L[menu_tab_quick_settings]="Quick settings"
+L[menu_tab_projects]="Project settings"
+L[menu_tab_db]="Database settings"
+L[menu_tab_retention]="Retention policy"
+L[menu_tab_language]="Language"
+L[menu_tab_auto_update]="Auto-update"
+L[menu_tab_check_update]="Check for updates"
+L[menu_tab_remove]="Remove script and data"
 }
 
 ###############################################################################
@@ -1473,6 +1492,24 @@ L[menu_settings]="Настройка конфигурации"
 L[menu_update]="Обновление скрипта"
 L[menu_remove]="Удаление скрипта"
 L[menu_shortcut]="Быстрый запуск:"
+L[menu_author]="Автор:"
+L[menu_tab_ops]="Операции"
+L[menu_tab_config]="Настройки"
+L[menu_tab_service]="Сервис"
+L[menu_tab_current]="Текущая вкладка:"
+L[menu_tab_prev]="Предыдущая вкладка"
+L[menu_tab_next]="Следующая вкладка"
+L[menu_tip_tabs]="Подсказка: используйте 8/9 для переключения вкладок"
+L[menu_tip_actions]="Действия во вкладке:"
+L[menu_tip_shortcut]="CLI-команда:"
+L[menu_tab_quick_settings]="Быстрые настройки"
+L[menu_tab_projects]="Настройки проекта"
+L[menu_tab_db]="Настройки базы данных"
+L[menu_tab_retention]="Политика хранения"
+L[menu_tab_language]="Язык интерфейса"
+L[menu_tab_auto_update]="Автообновление"
+L[menu_tab_check_update]="Проверить обновления"
+L[menu_tab_remove]="Удалить скрипт и данные"
 }
 
 ###############################################################################
@@ -4201,87 +4238,169 @@ fi
 # ─────────────────────────────────────────────
 # Интерактивное главное меню
 # ─────────────────────────────────────────────
+_next_main_tab() {
+    case "$1" in
+        ops) echo "config" ;;
+        config) echo "service" ;;
+        *) echo "ops" ;;
+    esac
+}
+
+_prev_main_tab() {
+    case "$1" in
+        ops) echo "service" ;;
+        config) echo "ops" ;;
+        *) echo "config" ;;
+    esac
+}
+
+_tab_title() {
+    case "$1" in
+        ops) echo "${L[menu_tab_ops]}" ;;
+        config) echo "${L[menu_tab_config]}" ;;
+        *) echo "${L[menu_tab_service]}" ;;
+    esac
+}
+
+_render_main_header() {
+    local current_tab="$1"
+    local tab_ops tab_cfg tab_srv
+    tab_ops=" ${L[menu_tab_ops]} "
+    tab_cfg=" ${L[menu_tab_config]} "
+    tab_srv=" ${L[menu_tab_service]} "
+
+    case "$current_tab" in
+        ops) tab_ops="${BOLD}${GREEN}[${L[menu_tab_ops]}]${NC}" ;;
+        config) tab_cfg="${BOLD}${GREEN}[${L[menu_tab_config]}]${NC}" ;;
+        service) tab_srv="${BOLD}${GREEN}[${L[menu_tab_service]}]${NC}" ;;
+    esac
+
+    echo ""
+    echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
+    printf "${BOLD}${CYAN}║ %-60s ║${NC}\n" "${L[menu_title]}"
+    printf "${BOLD}${CYAN}║ %-60s ║${NC}\n" "${L[menu_version]} ${SCRIPT_VERSION}   ${L[menu_author]} ${SCRIPT_AUTHOR}"
+    echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "  ${tab_ops}  ${tab_cfg}  ${tab_srv}"
+    echo -e "  ${L[menu_tab_current]} ${YELLOW}$(_tab_title "$current_tab")${NC}"
+    echo ""
+}
+
+_render_main_status() {
+    echo -e "  ${L[menu_project]} ${CYAN}${CFG_PROJECT_NAME:-${L[not_set]}}${NC} (${CFG_ACTIVE_PROJECT:-default})"
+    case "$CFG_DB_TYPE" in
+        docker)   echo -e "  ${L[menu_db_docker]} (${CFG_DB_ENGINE})" ;;
+        external) echo -e "  ${L[menu_db_ext]} (${CFG_DB_ENGINE}@${CFG_DB_HOST})" ;;
+        *)        echo -e "  ${L[menu_db_none]}" ;;
+    esac
+    echo -e "  ${L[ul_title]}: ${YELLOW}${CFG_UPLOAD_METHOD}${NC}"
+    echo ""
+    echo -e "  ${L[menu_tip_tabs]}"
+    echo ""
+}
+
+_menu_choose_upload_method() {
+    local ul_choice
+    echo ""
+    echo "${L[ul_title]}"
+    echo "  ${L[ul_current]} ${CFG_UPLOAD_METHOD}"
+    echo ""
+    echo "  1. ${L[ul_set_tg]}"
+    echo "  2. ${L[ul_set_s3]}"
+    echo "  3. ${L[ul_set_gd]}"
+    echo "  0. ${L[back]}"
+    read -rp "${L[select_option]}" ul_choice
+    case "$ul_choice" in
+        1) CFG_UPLOAD_METHOD="telegram"; log_info "${L[ul_tg_set]}" ;;
+        2) setup_s3_config ;;
+        3) setup_gd_config ;;
+        0) return ;;
+        *) log_warn "${L[invalid_input_select]}" ;;
+    esac
+    save_config "$CONFIG_FILE"
+    press_enter
+}
+
+_render_tab_menu() {
+    local current_tab="$1"
+    echo "────────────────────────────────────────────────────────────────"
+    echo "  ${L[menu_tip_actions]}"
+
+    case "$current_tab" in
+        ops)
+            echo "  1. ${L[menu_create_backup]}"
+            echo "  2. ${L[menu_restore]}"
+            echo "  3. ${L[menu_auto_send]}"
+            echo "  4. ${L[menu_upload_method]}"
+            ;;
+        config)
+            echo "  1. ${L[menu_tab_quick_settings]}"
+            echo "  2. ${L[menu_tab_projects]}"
+            echo "  3. ${L[menu_tab_db]}"
+            echo "  4. ${L[menu_tab_retention]}"
+            echo "  5. ${L[menu_tab_language]}"
+            echo "  6. ${L[menu_tab_auto_update]}"
+            ;;
+        service)
+            echo "  1. ${L[menu_update]}"
+            echo "  2. ${L[menu_tab_check_update]}"
+            echo "  3. ${L[menu_tab_remove]}"
+            ;;
+    esac
+
+    echo "  8. ${L[menu_tab_prev]}"
+    echo "  9. ${L[menu_tab_next]}"
+    echo "  0. ${L[exit]}"
+    echo "────────────────────────────────────────────────────────────────"
+    [[ -n "$BACKUP_SCRIPT" ]] && echo -e "  ${L[menu_tip_shortcut]} ${CYAN}backrest --project ${CFG_ACTIVE_PROJECT:-default} backup${NC}"
+    echo ""
+}
+
 _main_menu() {
+    local current_tab="ops"
+    local choice
+
     while true; do
         clear
-        echo ""
-        echo -e "${BOLD}╔══════════════════════════════════════════╗${NC}"
-        printf  "${BOLD}║   %-40s║${NC}\n" "${L[menu_title]}"
-        printf  "${BOLD}║   %-40s║${NC}\n" "${L[menu_version]} ${SCRIPT_VERSION}"
-        echo -e "${BOLD}╚══════════════════════════════════════════╝${NC}"
-        echo ""
-
-        # Статус
-        echo -e "  ${L[menu_project]} ${CYAN}${CFG_PROJECT_NAME:-${L[not_set]}}${NC} (${CFG_ACTIVE_PROJECT:-default})"
-        case "$CFG_DB_TYPE" in
-            docker)   echo -e "  ${L[menu_db_docker]} (${CFG_DB_ENGINE})" ;;
-            external) echo -e "  ${L[menu_db_ext]} (${CFG_DB_ENGINE}@${CFG_DB_HOST})" ;;
-            *)        echo -e "  ${L[menu_db_none]}" ;;
-        esac
-        echo ""
-        echo -e "  ${L[ul_title]}: ${YELLOW}${CFG_UPLOAD_METHOD}${NC}"
-        echo ""
-
-        echo "────────────────────────────────────────────"
-        echo "  1. ${L[menu_create_backup]}"
-        echo "  2. ${L[menu_restore]}"
-        echo "  3. ${L[menu_auto_send]}"
-        echo "  4. ${L[menu_upload_method]}"
-        echo "  5. ${L[menu_settings]}"
-        echo "  6. ${L[menu_update]}"
-        echo "  7. ${L[menu_remove]}"
-        echo "  0. ${L[exit]}"
-        echo "────────────────────────────────────────────"
-        [[ -n "$BACKUP_SCRIPT" ]] && echo -e "  ${L[menu_shortcut]} ${CYAN}backrest${NC}"
-        echo ""
+        _render_main_header "$current_tab"
+        _render_main_status
+        _render_tab_menu "$current_tab"
         read -rp "${L[select_option]}" choice
 
         case "$choice" in
-            1)
-                do_backup
-                press_enter_back
-                ;;
-            2)
-                do_restore
-                press_enter_back
-                ;;
-            3)
-                cron_menu
-                ;;
-            4)
-                echo ""
-                echo "${L[ul_title]}"
-                echo "  ${L[ul_current]} ${CFG_UPLOAD_METHOD}"
-                echo ""
-                echo "  1. ${L[ul_set_tg]}"
-                echo "  2. ${L[ul_set_s3]}"
-                echo "  3. ${L[ul_set_gd]}"
-                echo "  0. ${L[back]}"
-                read -rp "${L[select_option]}" ul_choice
-                case "$ul_choice" in
-                    1) CFG_UPLOAD_METHOD="telegram"; log_info "${L[ul_tg_set]}" ;;
-                    2) setup_s3_config ;;
-                    3) setup_gd_config ;;
+            8) current_tab="$(_prev_main_tab "$current_tab")"; continue ;;
+            9) current_tab="$(_next_main_tab "$current_tab")"; continue ;;
+            0) echo "${L[exit_dots]}"; exit 0 ;;
+        esac
+
+        case "$current_tab" in
+            ops)
+                case "$choice" in
+                    1) do_backup; press_enter_back ;;
+                    2) do_restore; press_enter_back ;;
+                    3) cron_menu ;;
+                    4) _menu_choose_upload_method ;;
+                    *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
                 esac
-                save_config "$CONFIG_FILE"
-                press_enter
                 ;;
-            5)
-                settings_menu
+            config)
+                case "$choice" in
+                    1) settings_menu ;;
+                    2) _settings_project ;;
+                    3) _settings_db ;;
+                    4) _settings_retention ;;
+                    5) _settings_lang; save_config "$CONFIG_FILE"; press_enter ;;
+                    6) _settings_autoupdate; save_config "$CONFIG_FILE"; press_enter ;;
+                    *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
+                esac
                 ;;
-            6)
-                do_update
-                ;;
-            7)
-                do_remove
-                ;;
-            0)
-                echo "${L[exit_dots]}"
-                exit 0
-                ;;
-            *)
-                log_warn "${L[invalid_input_select]}"
-                sleep 1
+            service)
+                case "$choice" in
+                    1) do_update ;;
+                    2) check_update; press_enter_back ;;
+                    3) do_remove ;;
+                    *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
+                esac
                 ;;
         esac
     done
