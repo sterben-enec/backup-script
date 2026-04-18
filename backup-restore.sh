@@ -543,7 +543,6 @@ L[s3_cleaned]="Deleted old backups from S3: %s"
 L[bk_starting]="Starting backup process..."
 L[bk_project]="Project:"
 L[bk_skip_db]="Skipping DB backup."
-L[bk_skip_env]="Skipping .env backup."
 L[bk_skip_dir]="Skipping project directory backup."
 L[bk_creating_dump]="Creating DB dump..."
 L[bk_dump_type]="DB engine:"
@@ -551,11 +550,8 @@ L[bk_dump_container]="Container:"
 L[bk_dump_ok]="DB dump successfully created."
 L[bk_dump_err]="Error creating DB dump. Exit code:"
 L[bk_check_db]="Check container and DB settings."
-L[bk_archiving_env]="Archiving .env file..."
-L[bk_env_ok]=".env file added successfully."
-L[bk_env_err]="Error archiving .env."
-L[bk_env_missing]=".env file not found at"
 L[bk_archiving_dir]="Archiving project directory"
+L[bk_archiving_dir_selected]="Archiving selected files/folders from project directory"
 L[bk_dir_ok]="Directory successfully archived."
 L[bk_dir_err]="Error archiving directory."
 L[bk_dir_missing]="Directory not found:"
@@ -872,24 +868,33 @@ L[st_db_only_ext]="Test available for external DB only."
 L[st_project_title]="Project settings"
 L[st_project_name]="Project name:"
 L[st_project_dir]="Project directory:"
-L[st_project_env]=".env path:"
+L[st_project_dir_mode]="Directory backup mode:"
+L[st_project_dir_items]="Selected items:"
 L[st_project_change_name]="Change project name"
 L[st_project_change_dir]="Change project directory"
-L[st_project_change_env]="Change .env path"
+L[st_project_change_scope]="Choose what to backup from directory"
 L[st_project_disable_dir]="Disable directory backup"
-L[st_project_disable_env]="Disable .env backup"
 L[st_project_enable_dir]="Enable directory backup"
-L[st_project_enable_env]="Enable .env backup"
 L[st_project_enter_name]="Enter new project name: "
 L[st_project_name_ok]="Project name updated."
 L[st_project_enter_dir]="Enter new directory path: "
 L[st_project_dir_ok]="Directory updated."
-L[st_project_enter_env]="Enter new .env path: "
-L[st_project_env_ok]=".env path updated."
 L[st_project_dir_disabled]="Directory backup disabled."
-L[st_project_env_disabled]=".env backup disabled."
 L[st_project_dir_enabled]="Directory backup enabled."
-L[st_project_env_enabled]=".env backup enabled."
+L[st_project_scope_saved]="Directory backup scope saved."
+L[st_project_scope_full]="Full directory"
+L[st_project_scope_selected]="Selected files/folders"
+L[st_project_scope_pick]="Pick files/folders"
+L[st_project_scope_none]="No items selected"
+L[pick_title]="Directory content selection"
+L[pick_help]="Arrows: move | Enter: open/confirm | Space: select | Backspace/Left: up | c: confirm"
+L[pick_current]="Current:"
+L[pick_selected]="Selected:"
+L[pick_confirm]="Confirm selected items?"
+L[pick_done]="Selection saved."
+L[pick_cancel]="Selection cancelled."
+L[pick_up]="[..] Up"
+L[pick_confirm_item]="[Confirm selection]"
 
 L[st_retention_title]="Backup retention policy"
 L[st_retention_local]="Local retention:"
@@ -1160,7 +1165,6 @@ L[s3_cleaned]="Удалено старых бэкапов из S3: %s"
 L[bk_starting]="Начинаю создание резервной копии..."
 L[bk_project]="Проект:"
 L[bk_skip_db]="Пропускаю бэкап БД."
-L[bk_skip_env]="Пропускаю бэкап .env."
 L[bk_skip_dir]="Пропускаю бэкап директории проекта."
 L[bk_creating_dump]="Создание дампа БД..."
 L[bk_dump_type]="Тип БД:"
@@ -1168,11 +1172,8 @@ L[bk_dump_container]="Контейнер:"
 L[bk_dump_ok]="Дамп БД успешно создан."
 L[bk_dump_err]="Ошибка при создании дампа БД. Код:"
 L[bk_check_db]="Проверьте контейнер и настройки БД."
-L[bk_archiving_env]="Архивирование .env файла..."
-L[bk_env_ok]="Файл .env успешно добавлен."
-L[bk_env_err]="Ошибка при архивировании .env."
-L[bk_env_missing]=".env файл не найден по пути"
 L[bk_archiving_dir]="Архивирование директории проекта"
+L[bk_archiving_dir_selected]="Архивирование выбранных файлов/папок из директории проекта"
 L[bk_dir_ok]="Директория успешно заархивирована."
 L[bk_dir_err]="Ошибка при архивировании директории."
 L[bk_dir_missing]="Директория не найдена:"
@@ -1489,24 +1490,33 @@ L[st_db_only_ext]="Тест доступен только для внешней 
 L[st_project_title]="Настройки проекта"
 L[st_project_name]="Имя проекта:"
 L[st_project_dir]="Директория проекта:"
-L[st_project_env]="Путь к .env:"
+L[st_project_dir_mode]="Режим бэкапа директории:"
+L[st_project_dir_items]="Выбранные элементы:"
 L[st_project_change_name]="Изменить имя проекта"
 L[st_project_change_dir]="Изменить директорию проекта"
-L[st_project_change_env]="Изменить путь к .env"
+L[st_project_change_scope]="Выбрать что бэкапить из директории"
 L[st_project_disable_dir]="Отключить бэкап директории"
-L[st_project_disable_env]="Отключить бэкап .env"
 L[st_project_enable_dir]="Включить бэкап директории"
-L[st_project_enable_env]="Включить бэкап .env"
 L[st_project_enter_name]="Введите новое имя проекта: "
 L[st_project_name_ok]="Имя проекта обновлено."
 L[st_project_enter_dir]="Введите новый путь к директории: "
 L[st_project_dir_ok]="Директория обновлена."
-L[st_project_enter_env]="Введите новый путь к .env: "
-L[st_project_env_ok]="Путь к .env обновлен."
 L[st_project_dir_disabled]="Бэкап директории отключен."
-L[st_project_env_disabled]="Бэкап .env отключен."
 L[st_project_dir_enabled]="Бэкап директории включен."
-L[st_project_env_enabled]="Бэкап .env включен."
+L[st_project_scope_saved]="Область бэкапа директории сохранена."
+L[st_project_scope_full]="Вся директория"
+L[st_project_scope_selected]="Выбранные файлы/папки"
+L[st_project_scope_pick]="Выбрать файлы/папки"
+L[st_project_scope_none]="Ничего не выбрано"
+L[pick_title]="Выбор содержимого директории"
+L[pick_help]="Стрелки: перемещение | Enter: открыть/подтвердить | Пробел: выбрать | Backspace/Влево: вверх | c: подтвердить"
+L[pick_current]="Текущая:"
+L[pick_selected]="Выбрано:"
+L[pick_confirm]="Подтвердить выбранные элементы?"
+L[pick_done]="Выбор сохранён."
+L[pick_cancel]="Выбор отменён."
+L[pick_up]="[..] Вверх"
+L[pick_confirm_item]="[Подтвердить выбор]"
 
 L[st_retention_title]="Политика хранения бэкапов"
 L[st_retention_local]="Локальное хранение:"
@@ -1681,8 +1691,10 @@ CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
 CFG_RETENTION_DAYS="30"
 
 # Флаги включения источников (профиль проекта)
-CFG_BACKUP_ENV="true"
+CFG_BACKUP_ENV="false"
 CFG_BACKUP_DIR_ENABLED="true"
+CFG_BACKUP_DIR_MODE="full"      # full | selected
+CFG_BACKUP_DIR_ITEMS=""         # newline-separated relative paths from CFG_PROJECT_DIR
 
 ensure_runtime_dirs() {
     local cfg_dir
@@ -1762,8 +1774,10 @@ reset_project_profile_defaults() {
     CFG_PROJECT_ENV=""
     CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
     CFG_RETENTION_DAYS="30"
-    CFG_BACKUP_ENV="true"
+    CFG_BACKUP_ENV="false"
     CFG_BACKUP_DIR_ENABLED="true"
+    CFG_BACKUP_DIR_MODE="full"
+    CFG_BACKUP_DIR_ITEMS=""
 }
 
 project_display_name() {
@@ -1894,6 +1908,8 @@ save_project_config() {
         printf 'CFG_RETENTION_DAYS=%s\n'     "$CFG_RETENTION_DAYS"
         printf 'CFG_BACKUP_ENV=%s\n'         "$CFG_BACKUP_ENV"
         printf 'CFG_BACKUP_DIR_ENABLED=%s\n' "$CFG_BACKUP_DIR_ENABLED"
+        printf 'CFG_BACKUP_DIR_MODE=%s\n'    "$CFG_BACKUP_DIR_MODE"
+        printf 'CFG_BACKUP_DIR_ITEMS=%s\n'   "$(printf '%q' "$CFG_BACKUP_DIR_ITEMS")"
     } | (umask 077; cat > "${project_file}.tmp") && mv "${project_file}.tmp" "$project_file"
     secure_file "$project_file"
 }
@@ -1906,6 +1922,8 @@ load_project_config() {
     [[ -f "$project_file" ]] || return 1
     # shellcheck source=/dev/null
     source "$project_file"
+    CFG_BACKUP_DIR_MODE="${CFG_BACKUP_DIR_MODE:-full}"
+    CFG_BACKUP_DIR_ITEMS="${CFG_BACKUP_DIR_ITEMS:-}"
     CFG_PROJECT_ID="$project_id"
     CFG_ACTIVE_PROJECT="$project_id"
     return 0
@@ -2008,14 +2026,11 @@ _configure_project_wizard() {
         fi
     done
 
-    # .env файл
-    echo ""
-    CFG_PROJECT_ENV=$(input_path "${L[cfg_project_env]}" true)
-    if [[ -z "$CFG_PROJECT_ENV" ]]; then
-        CFG_BACKUP_ENV="false"
-    else
-        CFG_BACKUP_ENV="true"
-    fi
+    # По умолчанию бэкап директории целиком (без .env как отдельного источника)
+    CFG_BACKUP_ENV="false"
+    CFG_PROJECT_ENV=""
+    CFG_BACKUP_DIR_MODE="full"
+    CFG_BACKUP_DIR_ITEMS=""
 
     CFG_BACKUP_DIR="${DEFAULT_BACKUP_DIR}"
 
@@ -2317,11 +2332,6 @@ tg_notify_backup_success() {
         *)        db_info="${L[tg_db_none]}" ;;
     esac
 
-    local env_info
-    [[ "$CFG_BACKUP_ENV" == "true" && -n "$CFG_PROJECT_ENV" ]] \
-        && env_info="${L[tg_env_yes]}" \
-        || env_info="${L[tg_env_no]}"
-
     local title
     case "$method" in
         s3)           title="${L[tg_bk_s3]}" ;;
@@ -2335,8 +2345,7 @@ tg_notify_backup_success() {
 ${L[tg_project]} <code>${CFG_PROJECT_NAME}</code>
 ${L[tg_size]} <code>${size}</code>
 ${L[tg_date]} <code>${date_str}</code>
-${L[tg_db]} ${db_info}
-${L[tg_env]} ${env_info}"
+${L[tg_db]} ${db_info}"
 
     tg_send_message "$msg"
 }
@@ -2952,34 +2961,49 @@ do_backup() {
         log_warn "${L[bk_skip_db]}"
     fi
 
-    # ── 2. .env файл ────────────────────────────
-    if [[ "$CFG_BACKUP_ENV" == "true" && -n "$CFG_PROJECT_ENV" ]]; then
-        if [[ -f "$CFG_PROJECT_ENV" ]]; then
-            log_step "${L[bk_archiving_env]}"
-            if cp "$CFG_PROJECT_ENV" "${tmp_dir}/.env"; then
-                log_info "${L[bk_env_ok]}"
-                has_data=true
-            else
-                log_error "${L[bk_env_err]}"
-            fi
-        else
-            log_warn "${L[bk_env_missing]} $CFG_PROJECT_ENV"
-        fi
-    else
-        log_warn "${L[bk_skip_env]}"
-    fi
-
-    # ── 3. Директория проекта ───────────────────
+    # ── 2. Директория проекта ───────────────────
     if [[ "$CFG_BACKUP_DIR_ENABLED" == "true" && -n "$CFG_PROJECT_DIR" ]]; then
         if [[ -d "$CFG_PROJECT_DIR" ]]; then
-            log_step "${L[bk_archiving_dir]} ${CFG_PROJECT_DIR}"
-            if tar -czf "${tmp_dir}/project_dir.tar.gz" \
-                    --exclude="${CFG_PROJECT_DIR}/.git" \
-                    -C "$(dirname "$CFG_PROJECT_DIR")" \
-                    "$(basename "$CFG_PROJECT_DIR")" 2>/dev/null; then
+            local project_parent project_base archive_ok=false archive_attempted=false
+            project_parent="$(dirname "$CFG_PROJECT_DIR")"
+            project_base="$(basename "$CFG_PROJECT_DIR")"
+
+            if [[ "${CFG_BACKUP_DIR_MODE:-full}" == "selected" ]]; then
+                log_step "${L[bk_archiving_dir_selected]} ${CFG_PROJECT_DIR}"
+                local rel abs_path
+                local -a tar_items=()
+                while IFS= read -r rel; do
+                    [[ -z "$rel" ]] && continue
+                    [[ "$rel" == /* || "$rel" == *".."* ]] && continue
+                    abs_path="${CFG_PROJECT_DIR}/${rel}"
+                    if [[ -e "$abs_path" ]]; then
+                        tar_items+=("${project_base}/${rel}")
+                    fi
+                done <<< "${CFG_BACKUP_DIR_ITEMS:-}"
+
+                if (( ${#tar_items[@]} > 0 )); then
+                    archive_attempted=true
+                    if tar -czf "${tmp_dir}/project_dir.tar.gz" -C "$project_parent" "${tar_items[@]}" 2>/dev/null; then
+                        archive_ok=true
+                    fi
+                else
+                    log_warn "${L[st_project_scope_none]}"
+                fi
+            else
+                log_step "${L[bk_archiving_dir]} ${CFG_PROJECT_DIR}"
+                archive_attempted=true
+                if tar -czf "${tmp_dir}/project_dir.tar.gz" \
+                        --exclude="${CFG_PROJECT_DIR}/.git" \
+                        -C "$project_parent" \
+                        "$project_base" 2>/dev/null; then
+                    archive_ok=true
+                fi
+            fi
+
+            if [[ "$archive_ok" == "true" ]]; then
                 log_info "${L[bk_dir_ok]}"
                 has_data=true
-            else
+            elif [[ "$archive_attempted" == "true" ]]; then
                 log_error "${L[bk_dir_err]}"
             fi
         else
@@ -2996,7 +3020,7 @@ do_backup() {
         return 1
     fi
 
-    # ── 4. Записать метаданные ───────────────────
+    # ── 3. Записать метаданные ───────────────────
     cat > "${tmp_dir}/backup_meta.json" <<EOF
 {
   "project": "${CFG_PROJECT_NAME}",
@@ -3004,12 +3028,12 @@ do_backup() {
   "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "db_type": "${CFG_DB_TYPE}",
   "db_engine": "${CFG_DB_ENGINE}",
-  "env_included": ${CFG_BACKUP_ENV:-false},
-  "dir_included": ${CFG_BACKUP_DIR_ENABLED:-false}
+  "dir_included": ${CFG_BACKUP_DIR_ENABLED:-false},
+  "dir_mode": "${CFG_BACKUP_DIR_MODE:-full}"
 }
 EOF
 
-    # ── 5. Финальный архив ───────────────────────
+    # ── 4. Финальный архив ───────────────────────
     log_step "${L[bk_cleaning]}"
     if ! tar -czf "$final_archive" -C "$tmp_dir" . 2>/dev/null; then
         local exit_code=$?
@@ -3023,11 +3047,11 @@ EOF
     trap - EXIT INT TERM
     log_info "${L[bk_final_ok]} $final_archive"
 
-    # ── 6. Отправить/загрузить ───────────────────
+    # ── 5. Отправить/загрузить ───────────────────
     _send_backup "$final_archive"
     local send_status=$?
 
-    # ── 7. Локальная ротация ─────────────────────
+    # ── 6. Локальная ротация ─────────────────────
     _apply_local_retention
 
     return $send_status
@@ -3678,6 +3702,265 @@ check_update_bg() {
     fi
 }
 
+_project_selected_items_count() {
+    local count=0 line
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && ((count++))
+    done <<< "${CFG_BACKUP_DIR_ITEMS:-}"
+    echo "$count"
+}
+
+_project_selected_items_preview() {
+    local preview="" line count=0
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        ((count++))
+        if (( count <= 3 )); then
+            if [[ -z "$preview" ]]; then
+                preview="$line"
+            else
+                preview+=", $line"
+            fi
+        fi
+    done <<< "${CFG_BACKUP_DIR_ITEMS:-}"
+
+    if (( count == 0 )); then
+        echo "${L[st_project_scope_none]}"
+    elif (( count > 3 )); then
+        echo "${preview}, +$((count - 3))"
+    else
+        echo "$preview"
+    fi
+}
+
+_project_dir_picker() {
+    local root="$1"
+    local current_rel="" current_abs="$root"
+    local key seq cursor=0 i
+    local -A selected=()
+    local -a dirs files entries labels keys
+
+    [[ -d "$root" ]] || return 1
+
+    # preload current selection
+    while IFS= read -r i; do
+        [[ -n "$i" ]] && selected["$i"]=1
+    done <<< "${CFG_BACKUP_DIR_ITEMS:-}"
+
+    while true; do
+        dirs=()
+        files=()
+        entries=()
+        labels=()
+        keys=()
+
+        local p name
+        shopt -s nullglob dotglob
+        for p in "$current_abs"/*; do
+            name="${p##*/}"
+            [[ "$name" == "." || "$name" == ".." ]] && continue
+            if [[ -d "$p" ]]; then
+                dirs+=("$name/")
+            else
+                files+=("$name")
+            fi
+        done
+        shopt -u nullglob dotglob
+
+        if (( ${#dirs[@]} > 0 )); then
+            mapfile -t dirs < <(printf '%s\n' "${dirs[@]}" | LC_ALL=C sort)
+        fi
+        if (( ${#files[@]} > 0 )); then
+            mapfile -t files < <(printf '%s\n' "${files[@]}" | LC_ALL=C sort)
+        fi
+
+        keys+=("__confirm")
+        labels+=("${L[pick_confirm_item]}")
+
+        if [[ -n "$current_rel" ]]; then
+            keys+=("__up")
+            labels+=("${L[pick_up]}")
+        fi
+
+        for name in "${dirs[@]}" "${files[@]}"; do
+            local rel
+            if [[ -n "$current_rel" ]]; then
+                rel="${current_rel}/${name%/}"
+            else
+                rel="${name%/}"
+            fi
+            keys+=("item:${name}")
+            if [[ -n "${selected[$rel]+x}" ]]; then
+                labels+=("[x] ${name}")
+            else
+                labels+=("[ ] ${name}")
+            fi
+        done
+
+        (( cursor >= ${#labels[@]} )) && cursor=$(( ${#labels[@]} - 1 ))
+        (( cursor < 0 )) && cursor=0
+
+        clear
+        echo ""
+        echo -e "${BOLD}${L[pick_title]}${NC}"
+        echo "────────────────────────────────────────────────────────────────"
+        echo "${L[pick_current]} ${current_rel:-/}"
+        echo "${L[pick_selected]} ${#selected[@]}"
+        echo "${L[pick_help]}"
+        echo ""
+
+        for i in "${!labels[@]}"; do
+            if (( i == cursor )); then
+                echo -e "  ${BOLD}${GREEN}>${NC} ${labels[$i]}"
+            else
+                echo "    ${labels[$i]}"
+            fi
+        done
+
+        IFS= read -rsn1 key || return 1
+
+        if [[ "$key" == $'\e' ]]; then
+            seq=""
+            while IFS= read -rsn1 -t 0.05 key; do
+                seq+="$key"
+                [[ "$key" =~ [A-Za-z~] ]] && break
+            done
+            case "$seq" in
+                "[A"|"OA") cursor=$(( (cursor - 1 + ${#labels[@]}) % ${#labels[@]} )) ;;
+                "[B"|"OB") cursor=$(( (cursor + 1) % ${#labels[@]} )) ;;
+                "[D"|"OD")
+                    if [[ -n "$current_rel" ]]; then
+                        if [[ "$current_rel" == */* ]]; then
+                            current_rel="${current_rel%/*}"
+                        else
+                            current_rel=""
+                        fi
+                        current_abs="$root${current_rel:+/$current_rel}"
+                        cursor=0
+                    fi
+                    ;;
+            esac
+            continue
+        fi
+
+        if [[ "$key" == " " ]]; then
+            local selected_key="${keys[$cursor]}"
+            if [[ "$selected_key" == item:* ]]; then
+                name="${selected_key#item:}"
+                local rel
+                if [[ -n "$current_rel" ]]; then
+                    rel="${current_rel}/${name%/}"
+                else
+                    rel="${name%/}"
+                fi
+                if [[ -n "${selected[$rel]+x}" ]]; then
+                    unset 'selected[$rel]'
+                else
+                    selected["$rel"]=1
+                fi
+            fi
+            continue
+        fi
+
+        if [[ "$key" == $'\177' ]]; then
+            if [[ -n "$current_rel" ]]; then
+                if [[ "$current_rel" == */* ]]; then
+                    current_rel="${current_rel%/*}"
+                else
+                    current_rel=""
+                fi
+                current_abs="$root${current_rel:+/$current_rel}"
+                cursor=0
+            fi
+            continue
+        fi
+
+        if [[ "$key" == "c" || "$key" == "C" || -z "$key" || "$key" == $'\n' || "$key" == $'\r' ]]; then
+            local selected_key="${keys[$cursor]}"
+            case "$selected_key" in
+                __confirm)
+                    echo ""
+                    echo "${L[pick_selected]}"
+                    if (( ${#selected[@]} == 0 )); then
+                        echo "  - ${L[st_project_scope_none]}"
+                    else
+                        local line
+                        while IFS= read -r line; do
+                            [[ -n "$line" ]] && echo "  - $line"
+                        done < <(printf '%s\n' "${!selected[@]}" | LC_ALL=C sort)
+                    fi
+                    confirm "${L[pick_confirm]}" || { log_warn "${L[pick_cancel]}"; press_enter; continue; }
+
+                    CFG_BACKUP_DIR_ITEMS="$(printf '%s\n' "${!selected[@]}" | LC_ALL=C sort)"
+                    log_info "${L[pick_done]}"
+                    press_enter
+                    return 0
+                    ;;
+                __up)
+                    if [[ "$current_rel" == */* ]]; then
+                        current_rel="${current_rel%/*}"
+                    else
+                        current_rel=""
+                    fi
+                    current_abs="$root${current_rel:+/$current_rel}"
+                    cursor=0
+                    ;;
+                item:*)
+                    name="${selected_key#item:}"
+                    if [[ -d "${current_abs}/${name%/}" ]]; then
+                        if [[ -n "$current_rel" ]]; then
+                            current_rel="${current_rel}/${name%/}"
+                        else
+                            current_rel="${name%/}"
+                        fi
+                        current_abs="$root/${current_rel}"
+                        cursor=0
+                    fi
+                    ;;
+            esac
+        fi
+    done
+}
+
+_settings_project_scope() {
+    while true; do
+        clear
+        echo ""
+        echo -e "${BOLD}${L[st_project_change_scope]}${NC}"
+        echo "────────────────────────────────"
+        _menu_select "1 2 3 0" "1" \
+            "${L[st_project_scope_full]}" \
+            "${L[st_project_scope_selected]}" \
+            "${L[st_project_scope_pick]}" \
+            "${L[back]}"
+        local choice="$MENU_CHOICE"
+        case "$choice" in
+            1)
+                CFG_BACKUP_DIR_MODE="full"
+                CFG_BACKUP_DIR_ITEMS=""
+                log_info "${L[st_project_scope_saved]}"
+                return
+                ;;
+            2)
+                CFG_BACKUP_DIR_MODE="selected"
+                log_info "${L[st_project_scope_saved]}"
+                return
+                ;;
+            3)
+                if [[ -z "$CFG_PROJECT_DIR" || ! -d "$CFG_PROJECT_DIR" ]]; then
+                    log_warn "${L[bk_dir_missing]} ${CFG_PROJECT_DIR:-${L[not_set]}}"
+                    press_enter
+                    continue
+                fi
+                _project_dir_picker "$CFG_PROJECT_DIR" || true
+                CFG_BACKUP_DIR_MODE="selected"
+                return
+                ;;
+            0) return ;;
+        esac
+    done
+}
+
 ###############################################################################
 # MODULE: settings
 ###############################################################################
@@ -3947,11 +4230,12 @@ _settings_projects_switch() {
         ((i++))
     done
 
-    local choice options_str="0"
+    local choice options_str=""
     local n
     for ((n=1; n<=${#ids[@]}; n++)); do
-        options_str="$options_str $n"
+        options_str="${options_str:+$options_str }$n"
     done
+    options_str="${options_str:+$options_str }0"
     labels+=("${L[back]}")
     _menu_select "$options_str" "1" "${labels[@]}"
     choice="$MENU_CHOICE"
@@ -4026,11 +4310,12 @@ _settings_projects_delete() {
         ((i++))
     done
 
-    local choice options_str="0"
+    local choice options_str=""
     local n
     for ((n=1; n<=${#ids[@]}; n++)); do
-        options_str="$options_str $n"
+        options_str="${options_str:+$options_str }$n"
     done
+    options_str="${options_str:+$options_str }0"
     labels+=("${L[back]}")
     _menu_select "$options_str" "1" "${labels[@]}"
     choice="$MENU_CHOICE"
@@ -4079,19 +4364,18 @@ _settings_project() {
         echo "  ID: ${CFG_ACTIVE_PROJECT:-${L[not_set]}}"
         echo "  ${L[st_project_name]} ${CFG_PROJECT_NAME:-${L[not_set]}}"
         echo "  ${L[st_project_dir]}  ${CFG_PROJECT_DIR:-${L[not_set]}}"
-        echo "  ${L[st_project_env]}  ${CFG_PROJECT_ENV:-${L[not_set]}}"
-        echo "  ${L[menu_shortcut]} backrest --project ${CFG_ACTIVE_PROJECT:-default} backup"
+        if [[ "${CFG_BACKUP_DIR_MODE:-full}" == "selected" ]]; then
+            echo "  ${L[st_project_dir_mode]} ${L[st_project_scope_selected]}"
+            echo "  ${L[st_project_dir_items]} $(_project_selected_items_preview)"
+        else
+            echo "  ${L[st_project_dir_mode]} ${L[st_project_scope_full]}"
+        fi
         echo ""
-        local project_toggle_dir_label project_toggle_env_label
+        local project_toggle_dir_label
         if [[ "$CFG_BACKUP_DIR_ENABLED" == "true" ]]; then
             project_toggle_dir_label="${L[st_project_disable_dir]}"
         else
             project_toggle_dir_label="${L[st_project_enable_dir]}"
-        fi
-        if [[ "$CFG_BACKUP_ENV" == "true" ]]; then
-            project_toggle_env_label="${L[st_project_disable_env]}"
-        else
-            project_toggle_env_label="${L[st_project_enable_env]}"
         fi
         local project_switch_label project_add_label project_remove_label project_list_label
         if [[ "$CFG_LANG" == "ru" ]]; then
@@ -4105,9 +4389,9 @@ _settings_project() {
             project_remove_label="Remove project"
             project_list_label="List projects"
         fi
-        _menu_select "1 2 3 4 5 6 7 8 9 0" "1" \
-            "${L[st_project_change_name]}" "${L[st_project_change_dir]}" "${L[st_project_change_env]}" \
-            "$project_toggle_dir_label" "$project_toggle_env_label" \
+        _menu_select "1 2 3 4 5 6 7 8 0" "1" \
+            "${L[st_project_change_name]}" "${L[st_project_change_dir]}" "${L[st_project_change_scope]}" \
+            "$project_toggle_dir_label" \
             "$project_switch_label" "$project_add_label" "$project_remove_label" "$project_list_label" "${L[back]}"
         choice="$MENU_CHOICE"
         case "$choice" in
@@ -4116,10 +4400,7 @@ _settings_project() {
                 local val; val=$(input_path "${L[st_project_enter_dir]}" true)
                 [[ -n "$val" ]] && CFG_PROJECT_DIR="$val" && log_info "${L[st_project_dir_ok]}"
                 ;;
-            3)
-                local val; val=$(input_path "${L[st_project_enter_env]}" true)
-                [[ -n "$val" ]] && CFG_PROJECT_ENV="$val" && CFG_BACKUP_ENV="true" && log_info "${L[st_project_env_ok]}"
-                ;;
+            3) _settings_project_scope ;;
             4)
                 if [[ "$CFG_BACKUP_DIR_ENABLED" == "true" ]]; then
                     CFG_BACKUP_DIR_ENABLED="false"; log_info "${L[st_project_dir_disabled]}"
@@ -4127,17 +4408,10 @@ _settings_project() {
                     CFG_BACKUP_DIR_ENABLED="true"; log_info "${L[st_project_dir_enabled]}"
                 fi
                 ;;
-            5)
-                if [[ "$CFG_BACKUP_ENV" == "true" ]]; then
-                    CFG_BACKUP_ENV="false"; log_info "${L[st_project_env_disabled]}"
-                else
-                    CFG_BACKUP_ENV="true"; log_info "${L[st_project_env_enabled]}"
-                fi
-                ;;
-            6) _settings_projects_switch ;;
-            7) _settings_projects_add ;;
-            8) _settings_projects_delete ;;
-            9) _settings_projects_list; press_enter ;;
+            5) _settings_projects_switch ;;
+            6) _settings_projects_add ;;
+            7) _settings_projects_delete ;;
+            8) _settings_projects_list; press_enter ;;
             0) return ;;
             *) log_warn "${L[invalid_input_select]}" ;;
         esac
