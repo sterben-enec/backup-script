@@ -39,7 +39,7 @@ curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backu
 - **Проекты**: Несколько независимых профилей, переключение/добавление/удаление из меню
 - **Базы данных**: PostgreSQL, MySQL / MariaDB, MongoDB
 - **Подключение к БД**: Docker-контейнер или внешний хост
-- **Что бэкапится**: Дамп БД + `.env` + директория проекта (каждый пункт опционален)
+- **Что бэкапится**: Дамп БД + директория проекта (целиком или выборочно: папки/файлы)
 - **Хранилища**: S3-совместимые (AWS, Yandex, Timeweb, MinIO и др.), Telegram, Google Drive
 - **Уведомления**: Telegram — статус каждого бэкапа / восстановления
 - **Автоматизация**: Встроенное управление cron (ежечасно / ежедневно / произвольное время)
@@ -109,7 +109,6 @@ backrest --config /opt/universal-backup/config/backup.cfg
 myproject_2026-04-17_03-00-00.tar.gz
 ├── backup_meta.json       # метаданные (проект, версия, timestamp)
 ├── db_dump.dump           # PostgreSQL (.sql для MySQL, .archive для MongoDB)
-├── .env                   # переменные окружения
 └── project_dir.tar.gz     # архив директории проекта
 ```
 
@@ -169,7 +168,7 @@ backrest restore
 - Локальные файлы из директории бэкапов
 - S3 (скачивает выбранный архив)
 
-При восстановлении скрипт интерактивно спрашивает что восстанавливать: БД, `.env`, директорию проекта — каждый пункт отдельно, с выбором пути.
+При восстановлении скрипт интерактивно спрашивает что восстанавливать: БД и/или директорию проекта.
 
 ---
 
@@ -179,11 +178,6 @@ backrest restore
 
 - **Глобальный конфиг**: язык, Telegram, автообновление, активный проект
 - **Конфиг проекта**: БД, пути проекта, S3/GDrive, retention и т.д.
-
-Важно про `.env`:
-
-- `CFG_PROJECT_ENV` должен указывать на **файл**, например: `/opt/support/.env`
-- Путь вида `/opt/support` (директория) — неверный для поля `.env` и даст предупреждение `файл не найден`
 
 Права на файлы конфигурации — `600`.
 
@@ -207,11 +201,11 @@ CFG_TG_PROXY=''
 ```bash
 CFG_PROJECT_NAME=support
 CFG_PROJECT_DIR=/opt/support
-CFG_PROJECT_ENV=/opt/support/.env
 CFG_BACKUP_DIR=/var/lib/universal-backup/backups
 CFG_RETENTION_DAYS=30
-CFG_BACKUP_ENV=true
 CFG_BACKUP_DIR_ENABLED=true
+CFG_BACKUP_DIR_MODE=full     # full | selected
+CFG_BACKUP_DIR_ITEMS=''      # список путей при режиме selected
 
 CFG_DB_TYPE=docker          # none | docker | external
 CFG_DB_ENGINE=postgres      # postgres | mysql | mongodb
