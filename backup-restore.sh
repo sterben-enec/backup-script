@@ -4391,11 +4391,21 @@ _project_cfg_value() {
 _trim_cell() {
     local value="$1"
     local width="$2"
+    value="$(_sanitize_text "$value")"
     if (( ${#value} > width )); then
         echo "${value:0:$((width-3))}..."
     else
         echo "$value"
     fi
+}
+
+_sanitize_text() {
+    local value="$1"
+    # Удаляем управляющие символы и (по возможности) битые UTF-8 байты.
+    if command -v iconv >/dev/null 2>&1; then
+        value=$(printf '%s' "$value" | iconv -f UTF-8 -t UTF-8 -c 2>/dev/null || printf '%s' "$value")
+    fi
+    printf '%s' "$value" | tr -d '\000-\010\013-\037\177'
 }
 
 _render_projects_overview() {
@@ -4412,13 +4422,15 @@ _render_projects_overview() {
         return
     fi
 
-    printf "  %-12s | %-20s | %-8s | %-11s | %-14s\n" \
+    local table_line="+--------------+----------------------+----------+-------------+----------------+"
+    echo "  ${table_line}"
+    printf "  | %-12s | %-20s | %-8s | %-11s | %-14s |\n" \
         "${L[menu_projects_col_id]}" \
         "${L[menu_projects_col_name]}" \
         "${L[menu_projects_col_db]}" \
         "${L[menu_projects_col_upload]}" \
         "${L[menu_projects_col_status]}"
-    echo "  ----------------------------------------------------------------------"
+    echo "  ${table_line}"
 
     for id in "${ids[@]}"; do
         local name db_type upload_method status_label
@@ -4434,13 +4446,14 @@ _render_projects_overview() {
             status_label="${L[menu_projects_status_ready]}"
         fi
 
-        printf "  %-12s | %-20s | %-8s | %-11s | %-14s\n" \
+        printf "  | %-12s | %-20s | %-8s | %-11s | %-14s |\n" \
             "$(_trim_cell "$id" 12)" \
             "$(_trim_cell "$name" 20)" \
             "$(_trim_cell "$db_type" 8)" \
             "$(_trim_cell "$upload_method" 11)" \
             "$(_trim_cell "$status_label" 14)"
     done
+    echo "  ${table_line}"
     echo ""
 }
 
@@ -4477,9 +4490,9 @@ _render_upload_methods_overview() {
 _render_main_header() {
     local current_tab="$1"
     local tab_ops tab_cfg tab_srv
-    tab_ops=" ${L[menu_tab_ops]} "
-    tab_cfg=" ${L[menu_tab_config]} "
-    tab_srv=" ${L[menu_tab_service]} "
+    tab_ops="${L[menu_tab_ops]}"
+    tab_cfg="${L[menu_tab_config]}"
+    tab_srv="${L[menu_tab_service]}"
 
     case "$current_tab" in
         ops) tab_ops="${BOLD}${GREEN}[${L[menu_tab_ops]}]${NC}" ;;
@@ -4487,11 +4500,13 @@ _render_main_header() {
         service) tab_srv="${BOLD}${GREEN}[${L[menu_tab_service]}]${NC}" ;;
     esac
 
+    local clean_author
+    clean_author="$(_sanitize_text "$SCRIPT_AUTHOR")"
+
     echo ""
-    echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
-    printf "${BOLD}${CYAN}║ %-60s ║${NC}\n" "${L[menu_title]}"
-    printf "${BOLD}${CYAN}║ %-60s ║${NC}\n" "${L[menu_version]} ${SCRIPT_VERSION}   ${L[menu_author]} ${SCRIPT_AUTHOR}"
-    echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "  ${BOLD}${CYAN}${L[menu_title]}${NC}"
+    echo -e "  ${L[menu_version]} ${SCRIPT_VERSION}  |  ${L[menu_author]} ${clean_author}"
+    echo "  ──────────────────────────────────────────────────────────────"
     echo ""
     echo -e "  ${L[menu_tabs_label]} ${tab_ops}  ${tab_cfg}  ${tab_srv}"
     echo -e "  ${L[menu_tip_tabs]}"
