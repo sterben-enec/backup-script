@@ -4366,35 +4366,41 @@ _render_tab_menu() {
 
 _read_main_menu_choice() {
     local key seq
+    MAIN_MENU_CHOICE=""
     printf "%s" "${L[select_option]}"
 
-    IFS= read -rn1 key || { echo ""; return 1; }
+    IFS= read -rn1 key || return 1
 
     if [[ "$key" == $'\e' ]]; then
-        IFS= read -rn2 -t 0.05 seq || true
+        seq=""
+        # Поддержка разных терминалов: ESC [ D/C и ESC O D/C
+        while IFS= read -rn1 -t 0.05 key; do
+            seq+="$key"
+            [[ "$key" =~ [A-Za-z~] ]] && break
+        done
         echo ""
         case "$seq" in
-            "[D") echo "__TAB_PREV" ;; # Left arrow
-            "[C") echo "__TAB_NEXT" ;; # Right arrow
-            *) echo "" ;;
+            "[D"|"OD") MAIN_MENU_CHOICE="__TAB_PREV" ;; # Left arrow
+            "[C"|"OC") MAIN_MENU_CHOICE="__TAB_NEXT" ;; # Right arrow
+            *) MAIN_MENU_CHOICE="" ;;
         esac
         return 0
     fi
 
     if [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
         echo ""
-        echo ""
+        MAIN_MENU_CHOICE=""
         return 0
     fi
 
     if [[ "$key" =~ [0-9] ]]; then
         echo ""
-        echo "$key"
+        MAIN_MENU_CHOICE="$key"
         return 0
     fi
 
     echo ""
-    echo "$key"
+    MAIN_MENU_CHOICE="$key"
 }
 
 _main_menu() {
@@ -4406,9 +4412,11 @@ _main_menu() {
         _render_main_header "$current_tab"
         _render_main_status
         _render_tab_menu "$current_tab"
-        choice="$(_read_main_menu_choice)"
+        _read_main_menu_choice
+        choice="$MAIN_MENU_CHOICE"
 
         case "$choice" in
+            "") continue ;;
             __TAB_PREV) current_tab="$(_prev_main_tab "$current_tab")"; continue ;;
             __TAB_NEXT) current_tab="$(_next_main_tab "$current_tab")"; continue ;;
             0) echo "${L[exit_dots]}"; exit 0 ;;
