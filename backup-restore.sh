@@ -892,11 +892,12 @@ L[menu_author]="Author:"
 L[menu_tab_ops]="Operations"
 L[menu_tab_config]="Configuration"
 L[menu_tab_service]="Service"
+L[menu_tabs_label]="Tabs:"
 L[menu_tab_current]="Current tab:"
 L[menu_tab_prev]="Previous tab"
 L[menu_tab_next]="Next tab"
 L[menu_tip_tabs]="Tip: use left/right arrow keys to switch tabs"
-L[menu_tip_actions]="Actions in this tab:"
+L[menu_tip_actions]="Choose action:"
 L[menu_tip_shortcut]="CLI shortcut:"
 L[menu_tab_quick_settings]="Quick settings"
 L[menu_tab_projects]="Project settings"
@@ -906,6 +907,16 @@ L[menu_tab_language]="Language"
 L[menu_tab_auto_update]="Auto-update"
 L[menu_tab_check_update]="Check for updates"
 L[menu_tab_remove]="Remove script and data"
+L[menu_projects_title]="Connected projects:"
+L[menu_projects_empty]="No projects found."
+L[menu_projects_col_id]="ID"
+L[menu_projects_col_name]="Name"
+L[menu_projects_col_db]="DB"
+L[menu_projects_col_upload]="Upload"
+L[menu_projects_col_status]="Status"
+L[menu_projects_status_active]="Active"
+L[menu_projects_status_ready]="Ready"
+L[menu_projects_status_attention]="Needs setup"
 }
 
 ###############################################################################
@@ -1496,11 +1507,12 @@ L[menu_author]="Автор:"
 L[menu_tab_ops]="Операции"
 L[menu_tab_config]="Настройки"
 L[menu_tab_service]="Сервис"
+L[menu_tabs_label]="Вкладки:"
 L[menu_tab_current]="Текущая вкладка:"
 L[menu_tab_prev]="Предыдущая вкладка"
 L[menu_tab_next]="Следующая вкладка"
 L[menu_tip_tabs]="Подсказка: используйте стрелки влево/вправо для переключения вкладок"
-L[menu_tip_actions]="Действия во вкладке:"
+L[menu_tip_actions]="Выберите действие:"
 L[menu_tip_shortcut]="CLI-команда:"
 L[menu_tab_quick_settings]="Быстрые настройки"
 L[menu_tab_projects]="Настройки проекта"
@@ -1510,6 +1522,16 @@ L[menu_tab_language]="Язык интерфейса"
 L[menu_tab_auto_update]="Автообновление"
 L[menu_tab_check_update]="Проверить обновления"
 L[menu_tab_remove]="Удалить скрипт и данные"
+L[menu_projects_title]="Подключённые проекты:"
+L[menu_projects_empty]="Проекты не найдены."
+L[menu_projects_col_id]="ID"
+L[menu_projects_col_name]="Название"
+L[menu_projects_col_db]="БД"
+L[menu_projects_col_upload]="Отправка"
+L[menu_projects_col_status]="Статус"
+L[menu_projects_status_active]="Активный"
+L[menu_projects_status_ready]="Готов"
+L[menu_projects_status_attention]="Требует настройки"
 }
 
 ###############################################################################
@@ -4272,6 +4294,74 @@ _tab_title() {
     esac
 }
 
+_project_cfg_value() {
+    local project_id="$1"
+    local key="$2"
+    local default_value="${3:-}"
+    local file value
+    file="$(_project_file_path "$project_id")"
+    [[ -f "$file" ]] || { echo "$default_value"; return; }
+
+    value=$(grep -E "^${key}=" "$file" | tail -1 | cut -d'=' -f2- | tr -d '"')
+    [[ -n "$value" ]] && echo "$value" || echo "$default_value"
+}
+
+_trim_cell() {
+    local value="$1"
+    local width="$2"
+    if (( ${#value} > width )); then
+        echo "${value:0:$((width-3))}..."
+    else
+        echo "$value"
+    fi
+}
+
+_render_projects_overview() {
+    local ids=()
+    local id
+    while IFS= read -r id; do
+        [[ -n "$id" ]] && ids+=("$id")
+    done < <(list_project_ids)
+
+    echo -e "  ${L[menu_projects_title]}"
+    if (( ${#ids[@]} == 0 )); then
+        echo "  ${L[menu_projects_empty]}"
+        echo ""
+        return
+    fi
+
+    printf "  %-12s | %-20s | %-8s | %-11s | %-14s\n" \
+        "${L[menu_projects_col_id]}" \
+        "${L[menu_projects_col_name]}" \
+        "${L[menu_projects_col_db]}" \
+        "${L[menu_projects_col_upload]}" \
+        "${L[menu_projects_col_status]}"
+    echo "  ----------------------------------------------------------------------"
+
+    for id in "${ids[@]}"; do
+        local name db_type upload_method status_label
+        name="$(project_display_name "$id")"
+        db_type="$(_project_cfg_value "$id" "CFG_DB_TYPE" "none")"
+        upload_method="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "telegram")"
+
+        if [[ "$id" == "${CFG_ACTIVE_PROJECT:-}" ]]; then
+            status_label="${L[menu_projects_status_active]}"
+        elif [[ "$db_type" == "none" ]]; then
+            status_label="${L[menu_projects_status_attention]}"
+        else
+            status_label="${L[menu_projects_status_ready]}"
+        fi
+
+        printf "  %-12s | %-20s | %-8s | %-11s | %-14s\n" \
+            "$(_trim_cell "$id" 12)" \
+            "$(_trim_cell "$name" 20)" \
+            "$(_trim_cell "$db_type" 8)" \
+            "$(_trim_cell "$upload_method" 11)" \
+            "$(_trim_cell "$status_label" 14)"
+    done
+    echo ""
+}
+
 _render_main_header() {
     local current_tab="$1"
     local tab_ops tab_cfg tab_srv
@@ -4291,7 +4381,8 @@ _render_main_header() {
     printf "${BOLD}${CYAN}║ %-60s ║${NC}\n" "${L[menu_version]} ${SCRIPT_VERSION}   ${L[menu_author]} ${SCRIPT_AUTHOR}"
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "  ${tab_ops}  ${tab_cfg}  ${tab_srv}"
+    echo -e "  ${L[menu_tabs_label]} ${tab_ops}  ${tab_cfg}  ${tab_srv}"
+    echo -e "  ${L[menu_tip_tabs]}"
     echo ""
 }
 
@@ -4304,8 +4395,7 @@ _render_main_status() {
     esac
     echo -e "  ${L[ul_title]}: ${YELLOW}${CFG_UPLOAD_METHOD}${NC}"
     echo ""
-    echo -e "  ${L[menu_tip_tabs]}"
-    echo ""
+    _render_projects_overview
 }
 
 _menu_choose_upload_method() {
@@ -4360,7 +4450,6 @@ _render_tab_menu() {
 
     echo "  0. ${L[exit]}"
     echo "────────────────────────────────────────────────────────────────"
-    [[ -n "$BACKUP_SCRIPT" ]] && echo -e "  ${L[menu_tip_shortcut]} ${CYAN}backrest --project ${CFG_ACTIVE_PROJECT:-default} backup${NC}"
     echo ""
 }
 
