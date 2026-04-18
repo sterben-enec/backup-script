@@ -224,7 +224,7 @@ _menu_select() {
             continue
         fi
 
-        if [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
+        if [[ -z "$key" || "$key" == $'\n' || "$key" == $'\r' ]]; then
             if [[ -n "$typed" ]]; then
                 local opt
                 for opt in "${options[@]}"; do
@@ -4610,7 +4610,7 @@ _read_main_menu_choice() {
             continue
         fi
 
-        if [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
+        if [[ -z "$key" || "$key" == $'\n' || "$key" == $'\r' ]]; then
             if [[ -n "$typed" ]]; then
                 local opt
                 for opt in "${options[@]}"; do
