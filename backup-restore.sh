@@ -1003,6 +1003,7 @@ L[menu_projects_status_active]="Active"
 L[menu_projects_status_ready]="Ready"
 L[menu_projects_status_attention]="Needs setup"
 L[menu_upload_configured]="Configured upload methods:"
+L[menu_actions_for_tab]="Actions for tab:"
 }
 
 ###############################################################################
@@ -1619,6 +1620,7 @@ L[menu_projects_status_active]="Активный"
 L[menu_projects_status_ready]="Готов"
 L[menu_projects_status_attention]="Требует настройки"
 L[menu_upload_configured]="Настроенные способы отправки:"
+L[menu_actions_for_tab]="Действия для вкладки:"
 }
 
 ###############################################################################
@@ -4488,6 +4490,18 @@ _render_upload_methods_overview() {
 }
 
 _render_main_header() {
+    local _current_tab="$1"
+    local clean_author
+    clean_author="$(_sanitize_text "$SCRIPT_AUTHOR")"
+
+    echo ""
+    echo -e "  ${BOLD}${CYAN}${L[menu_title]}${NC}"
+    echo -e "  ${L[menu_version]} ${SCRIPT_VERSION}  |  ${L[menu_author]} ${clean_author}"
+    echo "  ──────────────────────────────────────────────────────────────"
+    echo ""
+}
+
+_render_tabs_panel() {
     local current_tab="$1"
     local tab_ops tab_cfg tab_srv
     tab_ops="${L[menu_tab_ops]}"
@@ -4500,16 +4514,9 @@ _render_main_header() {
         service) tab_srv="${BOLD}${GREEN}[${L[menu_tab_service]}]${NC}" ;;
     esac
 
-    local clean_author
-    clean_author="$(_sanitize_text "$SCRIPT_AUTHOR")"
-
-    echo ""
-    echo -e "  ${BOLD}${CYAN}${L[menu_title]}${NC}"
-    echo -e "  ${L[menu_version]} ${SCRIPT_VERSION}  |  ${L[menu_author]} ${clean_author}"
-    echo "  ──────────────────────────────────────────────────────────────"
-    echo ""
     echo -e "  ${L[menu_tabs_label]} ${tab_ops}  ${tab_cfg}  ${tab_srv}"
     echo -e "  ${L[menu_tip_tabs]}"
+    echo "  ──────────────────────────────────────────────────────────────"
     echo ""
 }
 
@@ -4540,7 +4547,7 @@ _menu_choose_upload_method() {
 
 _render_tab_menu() {
     local current_tab="$1"
-    echo "────────────────────────────────────────────────────────────────"
+    echo -e "  ${L[menu_actions_for_tab]} ${BOLD}$(_tab_title "$current_tab")${NC}"
     echo "  ${L[menu_tip_actions]}"
     echo ""
 }
@@ -4637,6 +4644,7 @@ _main_menu() {
         clear
         _render_main_header "$current_tab"
         _render_main_status
+        _render_tabs_panel "$current_tab"
         _render_tab_menu "$current_tab"
 
         local -a main_labels=()
