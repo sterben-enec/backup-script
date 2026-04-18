@@ -161,6 +161,77 @@ confirm() {
     [[ "$ans" =~ ^[Yy]$ ]]
 }
 
+MENU_CHOICE=""
+
+# Универсальный селектор меню: стрелки вверх/вниз + Enter.
+# Пример: _menu_select "1 2 3 0" "1"; choice="$MENU_CHOICE"
+_menu_select() {
+    local options_str="$1"
+    local default_choice="${2:-}"
+    local -a options
+    local idx=0 key seq typed=""
+    MENU_CHOICE=""
+
+    read -r -a options <<< "$options_str"
+    (( ${#options[@]} == 0 )) && return 1
+
+    if [[ -n "$default_choice" ]]; then
+        local i
+        for i in "${!options[@]}"; do
+            if [[ "${options[$i]}" == "$default_choice" ]]; then
+                idx="$i"
+                break
+            fi
+        done
+    fi
+
+    while true; do
+        if [[ -n "$typed" ]]; then
+            printf "\r\033[2K%s %s" "${L[select_option]}" "$typed"
+        else
+            printf "\r\033[2K%s [%s]" "${L[select_option]}" "${options[$idx]}"
+        fi
+
+        IFS= read -rsn1 key || { echo ""; return 1; }
+
+        if [[ "$key" == $'\e' ]]; then
+            seq=""
+            while IFS= read -rsn1 -t 0.05 key; do
+                seq+="$key"
+                [[ "$key" =~ [A-Za-z~] ]] && break
+            done
+            case "$seq" in
+                "[A"|"OA") idx=$(( (idx - 1 + ${#options[@]}) % ${#options[@]} )); typed="" ;;
+                "[B"|"OB") idx=$(( (idx + 1) % ${#options[@]} )); typed="" ;;
+                *) ;;
+            esac
+            continue
+        fi
+
+        if [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
+            echo ""
+            if [[ -n "$typed" ]]; then
+                local opt
+                for opt in "${options[@]}"; do
+                    if [[ "$opt" == "$typed" ]]; then
+                        MENU_CHOICE="$typed"
+                        return 0
+                    fi
+                done
+                typed=""
+                continue
+            fi
+            MENU_CHOICE="${options[$idx]}"
+            return 0
+        fi
+
+        if [[ "$key" =~ [0-9] ]]; then
+            typed+="$key"
+            continue
+        fi
+    done
+}
+
 # Форматирование размера файла
 format_size() {
     local file="$1"
@@ -917,6 +988,7 @@ L[menu_projects_col_status]="Status"
 L[menu_projects_status_active]="Active"
 L[menu_projects_status_ready]="Ready"
 L[menu_projects_status_attention]="Needs setup"
+L[menu_upload_configured]="Configured upload methods:"
 }
 
 ###############################################################################
@@ -1532,6 +1604,7 @@ L[menu_projects_col_status]="Статус"
 L[menu_projects_status_active]="Активный"
 L[menu_projects_status_ready]="Готов"
 L[menu_projects_status_attention]="Требует настройки"
+L[menu_upload_configured]="Настроенные способы отправки:"
 }
 
 ###############################################################################
@@ -1953,7 +2026,8 @@ initial_setup() {
     echo "Language / Язык:"
     echo "  1. English"
     echo "  2. Русский"
-    read -rp "${L[select_option]}" lang_choice
+    _menu_select "1 2" "1"
+    lang_choice="$MENU_CHOICE"
     if [[ "$lang_choice" == "2" ]]; then
         CFG_LANG="ru"
         load_language "ru"
@@ -1998,7 +2072,8 @@ setup_db_wizard() {
     echo "  1. Docker container"
     echo "  2. External DB"
     echo "  3. ${L[cfg_db_skip]}"
-    read -rp "${L[select_option]}" db_choice
+    _menu_select "1 2 3" "1"
+    db_choice="$MENU_CHOICE"
 
     case "$db_choice" in
         1)
@@ -2054,7 +2129,8 @@ setup_upload_method_wizard() {
     echo "  1. ${L[ul_set_tg]}"
     echo "  2. ${L[ul_set_s3]}"
     echo "  3. ${L[ul_set_gd]}"
-    read -rp "${L[select_option]}" ul_choice
+    _menu_select "1 2 3" "1"
+    ul_choice="$MENU_CHOICE"
 
     case "$ul_choice" in
         2) setup_s3_config ;;
@@ -3067,7 +3143,8 @@ do_restore() {
     echo "  1. ${L[rs_source_local]}"
     echo "  2. ${L[rs_source_s3]}"
     echo "  0. ${L[back]}"
-    read -rp "${L[select_option]}" source_choice
+    _menu_select "1 2 0" "1"
+    source_choice="$MENU_CHOICE"
 
     local archive_file=""
     case "$source_choice" in
@@ -3226,7 +3303,8 @@ _restore_from_archive() {
             local env_dest
             echo "  1. ${L[rs_env_dest_original]} (${CFG_PROJECT_ENV})"
             echo "  2. ${L[rs_env_dest_custom]}"
-            read -rp "${L[select_option]}" env_choice
+            _menu_select "1 2" "1"
+            env_choice="$MENU_CHOICE"
             if [[ "$env_choice" == "2" ]]; then
                 env_dest=$(input_path "${L[rs_env_enter_path]}" false)
             else
@@ -3254,7 +3332,8 @@ _restore_from_archive() {
             local dir_dest
             echo "  1. ${L[rs_dir_dest_original]} ($(dirname "${CFG_PROJECT_DIR}"))"
             echo "  2. ${L[rs_dir_dest_custom]}"
-            read -rp "${L[select_option]}" dir_choice
+            _menu_select "1 2" "1"
+            dir_choice="$MENU_CHOICE"
             if [[ "$dir_choice" == "2" ]]; then
                 dir_dest=$(input_path "${L[rs_dir_enter_path]}" false)
             else
@@ -3317,7 +3396,8 @@ cron_menu() {
         echo "  2. ${L[cron_disable]}"
         echo "  0. ${L[back_to_menu]}"
         echo "────────────────────────────────"
-        read -rp "${L[select_option]}" choice
+        _menu_select "1 2 0" "1"
+        choice="$MENU_CHOICE"
         case "$choice" in
             1) _cron_enable ;;
             2) _cron_disable ;;
@@ -3329,7 +3409,8 @@ cron_menu() {
 
 # Показать текущий статус cron
 _cron_status_line() {
-    local current; current=$(crontab -l 2>/dev/null | grep -F "$(_cron_marker)")
+    local current
+    current=$({ crontab -l 2>/dev/null || true; } | grep -F "$(_cron_marker)" || true)
     if [[ -n "$current" ]]; then
         local schedule; schedule=$(echo "$current" | awk '{print $1,$2,$3,$4,$5}')
         echo "${L[cron_on]} ${schedule} ${L[cron_utc]}"
@@ -3345,7 +3426,8 @@ _cron_enable() {
     echo "  1. ${L[cron_hourly]}"
     echo "  2. ${L[cron_daily]}"
     echo "  0. ${L[back]}"
-    read -rp "${L[select_option]}" variant
+    _menu_select "1 2 0" "1"
+    variant="$MENU_CHOICE"
 
     local cron_expr=""
     case "$variant" in
@@ -3409,7 +3491,7 @@ _install_cron() {
 
     # Удалить старые записи этого проекта
     local current_cron
-    current_cron=$(crontab -l 2>/dev/null | grep -vF "$marker")
+    current_cron=$({ crontab -l 2>/dev/null || true; } | grep -vF "$marker" || true)
 
     # Добавить SHELL и PATH если нет
     local new_cron=""
@@ -3438,7 +3520,7 @@ _install_cron() {
 _cron_disable() {
     log_step "${L[cron_disabling]}"
     local current_cron
-    current_cron=$(crontab -l 2>/dev/null | grep -vF "$(_cron_marker)")
+    current_cron=$({ crontab -l 2>/dev/null || true; } | grep -vF "$(_cron_marker)" || true)
     echo "$current_cron" | crontab -
     log_info "${L[cron_disabled]}"
 }
@@ -3465,7 +3547,7 @@ do_update() {
     log_step "${L[upd_fetching]}"
 
     local latest_info
-    latest_info=$(curl -sf "$GITHUB_API_URL" 2>/dev/null)
+    latest_info=$(curl -sf "$GITHUB_API_URL" 2>/dev/null || true)
     if [[ -z "$latest_info" ]]; then
         log_error "${L[upd_fetch_fail]}"
         press_enter_back
@@ -3548,8 +3630,36 @@ _perform_update() {
     chmod +x "$script_path"
     log_info "${L[upd_done]} $new_version"
     echo "${L[upd_restart]}"
-    sleep 1
-    exec "$script_path"
+    press_enter_back
+}
+
+check_update() {
+    log_step "${L[upd_checking]}"
+    log_step "${L[upd_fetching]}"
+
+    local latest_info
+    latest_info=$(curl -sf "$GITHUB_API_URL" 2>/dev/null || true)
+    if [[ -z "$latest_info" ]]; then
+        log_error "${L[upd_fetch_fail]}"
+        return 1
+    fi
+
+    local latest_version current_version
+    latest_version=$(echo "$latest_info" | grep '"tag_name"' | head -1 | cut -d'"' -f4 | tr -d 'v')
+    current_version="$SCRIPT_VERSION"
+
+    if [[ -z "$latest_version" ]]; then
+        log_error "${L[upd_parse_fail]}"
+        return 1
+    fi
+
+    echo "${L[upd_current]} $current_version"
+    echo "${L[upd_available]} $latest_version"
+    if [[ "$latest_version" == "$current_version" ]]; then
+        log_info "${L[upd_latest]}"
+    else
+        log_info "${L[upd_new_avail]} $latest_version"
+    fi
 }
 
 # ─────────────────────────────────────────────
@@ -3559,7 +3669,8 @@ check_update_bg() {
     [[ "$CFG_AUTO_UPDATE" != "true" ]] && return
 
     local latest_info
-    latest_info=$(curl -sf --max-time 5 "$GITHUB_API_URL" 2>/dev/null) || return
+    latest_info=$(curl -sf --max-time 5 "$GITHUB_API_URL" 2>/dev/null || true)
+    [[ -z "$latest_info" ]] && return
 
     local latest_version
     latest_version=$(echo "$latest_info" | grep '"tag_name"' | head -1 | cut -d'"' -f4 | tr -d 'v')
@@ -3594,7 +3705,8 @@ settings_menu() {
         echo "  8. ${L[st_auto_update]}"
         echo "  0. ${L[back_to_menu]}"
         echo "────────────────────────────────"
-        read -rp "${L[select_option]}" choice
+        _menu_select "1 2 3 4 5 6 7 8 0" "1"
+        choice="$MENU_CHOICE"
         case "$choice" in
             1) _settings_telegram ;;
             2) _settings_s3 ;;
@@ -3631,7 +3743,8 @@ _settings_telegram() {
         echo "  4. ${L[st_tg_change_proxy]}"
         echo "  0. ${L[back]}"
         echo "────────────────────────────────"
-        read -rp "${L[select_option]}" choice
+        _menu_select "1 2 3 4 0" "1"
+        choice="$MENU_CHOICE"
         case "$choice" in
             1)
                 read -rp "${L[st_tg_enter_token]}" CFG_BOT_TOKEN
@@ -3685,7 +3798,8 @@ _settings_s3() {
         echo "  7. ${L[st_s3_test]}"
         echo "  0. ${L[back]}"
         echo "────────────────────────────────"
-        read -rp "${L[select_option]}" choice
+        _menu_select "1 2 3 4 5 6 7 0" "1"
+        choice="$MENU_CHOICE"
         case "$choice" in
             1) read -rp "${L[st_s3_enter_endpoint]}" CFG_S3_ENDPOINT; log_info "${L[st_s3_endpoint_ok]}" ;;
             2) read -rp "${L[st_s3_enter_region]}" CFG_S3_REGION
@@ -3722,7 +3836,8 @@ _settings_gd() {
         echo "  4. ${L[st_gd_change_folder]}"
         echo "  0. ${L[back]}"
         echo "────────────────────────────────"
-        read -rp "${L[select_option]}" choice
+        _menu_select "1 2 3 4 0" "1"
+        choice="$MENU_CHOICE"
         case "$choice" in
             1) read -rp "${L[st_gd_enter_id]}" CFG_GD_CLIENT_ID; log_info "${L[st_gd_id_ok]}" ;;
             2) read -rsp "${L[st_gd_enter_secret]}" CFG_GD_CLIENT_SECRET; echo ""; log_info "${L[st_gd_secret_ok]}" ;;
@@ -3771,13 +3886,15 @@ _settings_db() {
         echo "  8. ${L[st_db_disable]}"
         echo "  0. ${L[back]}"
         echo "────────────────────────────────"
-        read -rp "${L[select_option]}" choice
+        _menu_select "1 2 3 4 5 6 7 8 0" "1"
+        choice="$MENU_CHOICE"
         case "$choice" in
             1)
                 echo "  1. ${L[st_db_docker]}"
                 echo "  2. ${L[st_db_external]}"
                 echo "  3. ${L[st_db_none]}"
-                read -rp "${L[select_option]}" t
+                _menu_select "1 2 3" "1"
+                t="$MENU_CHOICE"
                 case "$t" in
                     1) CFG_DB_TYPE="docker"; log_info "${L[st_db_switched_docker]}" ;;
                     2) CFG_DB_TYPE="external"; log_info "${L[st_db_switched_ext]}" ;;
@@ -3872,8 +3989,13 @@ _settings_projects_switch() {
     done
     echo "  0. ${L[back]}"
 
-    local choice
-    read -rp "${L[select_option]}" choice
+    local choice options_str="0"
+    local n
+    for ((n=1; n<=${#ids[@]}; n++)); do
+        options_str="$options_str $n"
+    done
+    _menu_select "$options_str" "1"
+    choice="$MENU_CHOICE"
     [[ "$choice" == "0" ]] && return
     if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#ids[@]} )); then
         log_warn "${L[invalid_input_select]}"
@@ -3945,8 +4067,13 @@ _settings_projects_delete() {
     done
     echo "  0. ${L[back]}"
 
-    local choice
-    read -rp "${L[select_option]}" choice
+    local choice options_str="0"
+    local n
+    for ((n=1; n<=${#ids[@]}; n++)); do
+        options_str="$options_str $n"
+    done
+    _menu_select "$options_str" "1"
+    choice="$MENU_CHOICE"
     [[ "$choice" == "0" ]] && return
     if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#ids[@]} )); then
         log_warn "${L[invalid_input_select]}"
@@ -4021,7 +4148,8 @@ _settings_project() {
         fi
         echo "  0. ${L[back]}"
         echo "────────────────────────────────"
-        read -rp "${L[select_option]}" choice
+        _menu_select "1 2 3 4 5 6 7 8 9 0" "1"
+        choice="$MENU_CHOICE"
         case "$choice" in
             1) read -rp "${L[st_project_enter_name]}" CFG_PROJECT_NAME; log_info "${L[st_project_name_ok]}" ;;
             2)
@@ -4073,7 +4201,8 @@ _settings_retention() {
         echo "  2. ${L[st_retention_change_s3]}"
         echo "  0. ${L[back]}"
         echo "────────────────────────────────"
-        read -rp "${L[select_option]}" choice
+        _menu_select "1 2 0" "1"
+        choice="$MENU_CHOICE"
         case "$choice" in
             1)
                 printf "${L[st_retention_enter_local]}" "${CFG_RETENTION_DAYS}"
@@ -4102,7 +4231,8 @@ _settings_lang() {
     echo "  1. English"
     echo "  2. Русский"
     echo "  0. ${L[back]}"
-    read -rp "${L[select_option]}" choice
+    _menu_select "1 2 0" "1"
+    choice="$MENU_CHOICE"
     case "$choice" in
         1) CFG_LANG="en"; load_language "en"; log_info "${L[st_lang_changed]} English" ;;
         2) CFG_LANG="ru"; load_language "ru"; log_info "${L[st_lang_changed]} Русский" ;;
@@ -4125,7 +4255,8 @@ _settings_autoupdate() {
         echo "  1. ${L[st_auto_update_enable]}"
     fi
     echo "  0. ${L[back]}"
-    read -rp "${L[select_option]}" choice
+    _menu_select "1 0" "1"
+    choice="$MENU_CHOICE"
     case "$choice" in
         1)
             if [[ "$CFG_AUTO_UPDATE" == "true" ]]; then
@@ -4362,6 +4493,36 @@ _render_projects_overview() {
     echo ""
 }
 
+_render_upload_methods_overview() {
+    local ids=()
+    local id method methods_text
+    local -a methods=()
+    local -A seen=()
+
+    while IFS= read -r id; do
+        [[ -n "$id" ]] && ids+=("$id")
+    done < <(list_project_ids)
+
+    for id in "${ids[@]}"; do
+        method="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "")"
+        [[ -z "$method" ]] && continue
+        if [[ -z "${seen[$method]+x}" ]]; then
+            seen["$method"]=1
+            methods+=("$method")
+        fi
+    done
+
+    if (( ${#methods[@]} == 0 )); then
+        methods_text="${L[not_set]}"
+    else
+        local IFS=", "
+        methods_text="${methods[*]}"
+    fi
+
+    echo -e "  ${L[menu_upload_configured]} ${YELLOW}${methods_text}${NC}"
+    echo ""
+}
+
 _render_main_header() {
     local current_tab="$1"
     local tab_ops tab_cfg tab_srv
@@ -4387,15 +4548,8 @@ _render_main_header() {
 }
 
 _render_main_status() {
-    echo -e "  ${L[menu_project]} ${CYAN}${CFG_PROJECT_NAME:-${L[not_set]}}${NC} (${CFG_ACTIVE_PROJECT:-default})"
-    case "$CFG_DB_TYPE" in
-        docker)   echo -e "  ${L[menu_db_docker]} (${CFG_DB_ENGINE})" ;;
-        external) echo -e "  ${L[menu_db_ext]} (${CFG_DB_ENGINE}@${CFG_DB_HOST})" ;;
-        *)        echo -e "  ${L[menu_db_none]}" ;;
-    esac
-    echo -e "  ${L[ul_title]}: ${YELLOW}${CFG_UPLOAD_METHOD}${NC}"
-    echo ""
     _render_projects_overview
+    _render_upload_methods_overview
 }
 
 _menu_choose_upload_method() {
@@ -4409,7 +4563,8 @@ _menu_choose_upload_method() {
     echo "  2. ${L[ul_set_s3]}"
     echo "  3. ${L[ul_set_gd]}"
     echo "  0. ${L[back]}"
-    read -rp "${L[select_option]}" ul_choice
+    _menu_select "1 2 3 0" "1"
+    ul_choice="$MENU_CHOICE"
     case "$ul_choice" in
         1) CFG_UPLOAD_METHOD="telegram"; log_info "${L[ul_tg_set]}" ;;
         2) setup_s3_config ;;
@@ -4454,69 +4609,99 @@ _render_tab_menu() {
 }
 
 _read_main_menu_choice() {
-    local key seq
+    local options_str="$1"
+    local default_choice="${2:-1}"
+    local -a options
+    local idx=0 key seq typed=""
     MAIN_MENU_CHOICE=""
-    printf "%s" "${L[select_option]}"
+    MAIN_MENU_CURSOR="$default_choice"
+
+    read -r -a options <<< "$options_str"
+    (( ${#options[@]} == 0 )) && return 1
+
+    local i
+    for i in "${!options[@]}"; do
+        if [[ "${options[$i]}" == "$default_choice" ]]; then
+            idx="$i"
+            break
+        fi
+    done
 
     while true; do
-        IFS= read -rsn1 key || return 1
+        if [[ -n "$typed" ]]; then
+            printf "\r\033[2K%s %s" "${L[select_option]}" "$typed"
+        else
+            printf "\r\033[2K%s [%s]" "${L[select_option]}" "${options[$idx]}"
+        fi
+
+        IFS= read -rsn1 key || { echo ""; return 1; }
 
         if [[ "$key" == $'\e' ]]; then
             seq=""
-            # Поддержка разных терминалов: ESC [D/[C, ESC OD/OC, keypad ESC O{p..y}
             while IFS= read -rsn1 -t 0.05 key; do
                 seq+="$key"
                 [[ "$key" =~ [A-Za-z~] ]] && break
             done
             case "$seq" in
-                "[D"|"OD")
-                    echo ""
-                    MAIN_MENU_CHOICE="__TAB_PREV"
-                    return 0
-                    ;;
-                "[C"|"OC")
-                    echo ""
-                    MAIN_MENU_CHOICE="__TAB_NEXT"
-                    return 0
-                    ;;
-                "Op") echo ""; MAIN_MENU_CHOICE="0"; return 0 ;;
-                "Oq") echo ""; MAIN_MENU_CHOICE="1"; return 0 ;;
-                "Or") echo ""; MAIN_MENU_CHOICE="2"; return 0 ;;
-                "Os") echo ""; MAIN_MENU_CHOICE="3"; return 0 ;;
-                "Ot") echo ""; MAIN_MENU_CHOICE="4"; return 0 ;;
-                "Ou") echo ""; MAIN_MENU_CHOICE="5"; return 0 ;;
-                "Ov") echo ""; MAIN_MENU_CHOICE="6"; return 0 ;;
-                "Ow") echo ""; MAIN_MENU_CHOICE="7"; return 0 ;;
-                "Ox") echo ""; MAIN_MENU_CHOICE="8"; return 0 ;;
-                "Oy") echo ""; MAIN_MENU_CHOICE="9"; return 0 ;;
-                *)
-                    # Игнорируем неизвестные escape-последовательности.
-                    continue
-                    ;;
+                "[A"|"OA") idx=$(( (idx - 1 + ${#options[@]}) % ${#options[@]} )); typed="" ;;
+                "[B"|"OB") idx=$(( (idx + 1) % ${#options[@]} )); typed="" ;;
+                "[D"|"OD") echo ""; MAIN_MENU_CHOICE="__TAB_PREV"; MAIN_MENU_CURSOR="${options[$idx]}"; return 0 ;;
+                "[C"|"OC") echo ""; MAIN_MENU_CHOICE="__TAB_NEXT"; MAIN_MENU_CURSOR="${options[$idx]}"; return 0 ;;
+                *) ;;
             esac
+            continue
         fi
 
-        if [[ "$key" =~ [0-9] ]]; then
+        if [[ "$key" == $'\n' || "$key" == $'\r' ]]; then
             echo ""
-            MAIN_MENU_CHOICE="$key"
+            if [[ -n "$typed" ]]; then
+                local opt
+                for opt in "${options[@]}"; do
+                    if [[ "$opt" == "$typed" ]]; then
+                        MAIN_MENU_CHOICE="$typed"
+                        MAIN_MENU_CURSOR="$typed"
+                        return 0
+                    fi
+                done
+                typed=""
+                continue
+            fi
+            MAIN_MENU_CHOICE="${options[$idx]}"
+            MAIN_MENU_CURSOR="${options[$idx]}"
             return 0
         fi
 
-        # Enter и любые прочие клавиши игнорируем.
+        if [[ "$key" =~ [0-9] ]]; then
+            typed+="$key"
+        fi
     done
 }
 
 _main_menu() {
     local current_tab="ops"
     local choice
+    local choice_ops="1" choice_config="1" choice_service="1"
+    local current_choice options_for_tab
 
     while true; do
         clear
         _render_main_header "$current_tab"
         _render_main_status
         _render_tab_menu "$current_tab"
-        _read_main_menu_choice
+
+        case "$current_tab" in
+            ops) options_for_tab="1 2 3 4 0"; current_choice="$choice_ops" ;;
+            config) options_for_tab="1 2 3 4 5 6 0"; current_choice="$choice_config" ;;
+            service) options_for_tab="1 2 3 0"; current_choice="$choice_service" ;;
+        esac
+
+        _read_main_menu_choice "$options_for_tab" "$current_choice"
         choice="$MAIN_MENU_CHOICE"
+        case "$current_tab" in
+            ops) choice_ops="$MAIN_MENU_CURSOR" ;;
+            config) choice_config="$MAIN_MENU_CURSOR" ;;
+            service) choice_service="$MAIN_MENU_CURSOR" ;;
+        esac
 
         case "$choice" in
             "") continue ;;
