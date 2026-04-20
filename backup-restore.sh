@@ -85,7 +85,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --help|-h)
             cat <<EOF
-Backrest - backup & restore v${SCRIPT_VERSION}
+BACKREST - BACKUP & RESTORE v${SCRIPT_VERSION}
 
 Использование:
   $(basename "$0")                                Интерактивное меню
@@ -951,7 +951,7 @@ L[rm_dir_fail]="Error removing directory."
 L[rm_dir_none]="Installation directory not found."
 
 # Menu
-L[menu_title]="Backrest - backup & restore"
+L[menu_title]="BACKREST - BACKUP & RESTORE"
 L[menu_version]="Version:"
 L[menu_update_avail]="update available"
 L[menu_project]="Project:"
@@ -1561,7 +1561,7 @@ L[rm_dir_fail]="Ошибка при удалении каталога."
 L[rm_dir_none]="Каталог установки не найден."
 
 # Меню
-L[menu_title]="Backrest - backup & restore"
+L[menu_title]="BACKREST - BACKUP & RESTORE"
 L[menu_version]="Версия:"
 L[menu_update_avail]="доступно обновление"
 L[menu_project]="Проект:"
@@ -4772,6 +4772,72 @@ _menu_choose_upload_method() {
     press_enter
 }
 
+_select_connected_project() {
+    local title="${1:-}"
+    local ids=()
+    local id
+    while IFS= read -r id; do
+        [[ -n "$id" ]] && ids+=("$id")
+    done < <(list_project_ids)
+
+    if (( ${#ids[@]} == 0 )); then
+        log_warn "${L[menu_projects_empty]}"
+        return 1
+    fi
+
+    [[ -n "$title" ]] && echo "$title" >&2
+
+    local options_str="" n
+    local -a labels=()
+    for ((n=1; n<=${#ids[@]}; n++)); do
+        options_str="${options_str:+$options_str }$n"
+        labels+=("$(project_display_name "${ids[$((n-1))]}") (${ids[$((n-1))]})")
+    done
+    options_str="${options_str:+$options_str }0"
+    labels+=("${L[back]}")
+
+    _menu_select "$options_str" "1" "${labels[@]}"
+    local choice="$MENU_CHOICE"
+    [[ "$choice" == "0" ]] && return 1
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#ids[@]} )); then
+        log_warn "${L[invalid_input_select]}"
+        return 1
+    fi
+
+    echo "${ids[$((choice-1))]}"
+    return 0
+}
+
+_run_with_project_context() {
+    local target_project="$1"
+    shift
+    local prev_project="${CFG_ACTIVE_PROJECT:-$CFG_PROJECT_ID}"
+    local rc
+
+    activate_project_by_selector "$target_project" false || return 1
+    "$@"
+    rc=$?
+
+    if [[ -n "$prev_project" ]] && [[ "$prev_project" != "$target_project" ]]; then
+        activate_project_by_selector "$prev_project" false || true
+    fi
+    return $rc
+}
+
+_manual_backup_with_project_select() {
+    local target
+    target="$(_select_connected_project "${L[menu_projects_title]}")" || return 0
+    _run_with_project_context "$target" do_backup
+    press_enter_back
+}
+
+_manual_restore_with_project_select() {
+    local target
+    target="$(_select_connected_project "${L[menu_projects_title]}")" || return 0
+    _run_with_project_context "$target" do_restore
+    press_enter_back
+}
+
 _render_tab_menu() {
     local current_tab="$1"
     : "${current_tab:?}"
@@ -4875,6 +4941,7 @@ _main_menu() {
         _render_tab_menu "$current_tab"
 
         local -a main_labels=()
+        local -a tab_project_ids=()
         case "$current_tab" in
             ops)
                 options_for_tab="1 2 0"
@@ -4882,9 +4949,18 @@ _main_menu() {
                 main_labels=("${L[menu_create_backup]}" "${L[menu_restore]}" "${L[exit]}")
                 ;;
             config)
-                options_for_tab="1 0"
+                local id n
+                while IFS= read -r id; do
+                    [[ -n "$id" ]] && tab_project_ids+=("$id")
+                done < <(list_project_ids)
+                options_for_tab=""
+                for ((n=1; n<=${#tab_project_ids[@]}; n++)); do
+                    options_for_tab="${options_for_tab:+$options_for_tab }$n"
+                    main_labels+=("$(project_display_name "${tab_project_ids[$((n-1))]}") (${tab_project_ids[$((n-1))]})")
+                done
+                options_for_tab="${options_for_tab:+$options_for_tab }0"
                 current_choice="$choice_config"
-                main_labels=("${L[menu_projects_list]}" "${L[exit]}")
+                main_labels+=("${L[exit]}")
                 ;;
             service)
                 options_for_tab="1 2 3 4 5 6 0"
@@ -4911,16 +4987,23 @@ _main_menu() {
         case "$current_tab" in
             ops)
                 case "$choice" in
-                    1) do_backup; press_enter_back ;;
-                    2) do_restore; press_enter_back ;;
+                    1) _manual_backup_with_project_select ;;
+                    2) _manual_restore_with_project_select ;;
                     *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
                 esac
                 ;;
             config)
-                case "$choice" in
-                    1) _settings_project ;;
-                    *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
-                esac
+                if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#tab_project_ids[@]} )); then
+                    if switch_active_project "${tab_project_ids[$((choice-1))]}"; then
+                        _settings_project
+                    else
+                        log_warn "${L[invalid_input_select]}"
+                        sleep 1
+                    fi
+                else
+                    log_warn "${L[invalid_input_select]}"
+                    sleep 1
+                fi
                 ;;
             service)
                 case "$choice" in
