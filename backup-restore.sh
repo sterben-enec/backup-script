@@ -695,10 +695,13 @@ L[cron_disabled]="Automatic backup disabled."
 
 # Upload method
 L[ul_title]="Backup upload method"
-L[ul_current]="Current method:"
+L[ul_current]="Current methods:"
 L[ul_set_tg]="Telegram"
 L[ul_set_gd]="Google Drive"
 L[ul_set_s3]="S3 (S3-compatible storage)"
+L[ul_name_tg]="Telegram"
+L[ul_name_s3]="S3"
+L[ul_name_gd]="Google Drive"
 L[ul_tg_set]="Upload method: Telegram."
 L[ul_tg_enter]="Enter Telegram credentials:"
 L[ul_enter_token]="Enter API Token: "
@@ -724,6 +727,10 @@ L[ul_s3_enter_prefix]="Prefix (folder): "
 L[ul_s3_fail]="Required fields missing (Bucket, Access Key, Secret Key)."
 L[ul_s3_not_done]="S3 setup not complete, switching to Telegram."
 L[ul_s3_saved]="S3 settings saved."
+L[ul_multi_help]="Arrows: move | Space: toggle | Enter: apply"
+L[ul_multi_apply]="Apply selected methods"
+L[ul_multi_saved]="Upload methods updated:"
+L[ul_multi_need_one]="Select at least one upload method."
 
 # Settings
 L[st_title]="Script configuration"
@@ -1342,10 +1349,13 @@ L[cron_disabled]="Автоматический бэкап отключен."
 
 # Настройки способа отправки
 L[ul_title]="Настройка способа отправки бэкапов"
-L[ul_current]="Текущий способ:"
+L[ul_current]="Текущие способы:"
 L[ul_set_tg]="Telegram"
 L[ul_set_gd]="Google Drive"
 L[ul_set_s3]="S3 (S3-совместимое хранилище)"
+L[ul_name_tg]="Telegram"
+L[ul_name_s3]="S3"
+L[ul_name_gd]="Google Drive"
 L[ul_tg_set]="Способ отправки: Telegram."
 L[ul_tg_enter]="Введите данные для Telegram:"
 L[ul_enter_token]="Введите API Token: "
@@ -1371,6 +1381,10 @@ L[ul_s3_enter_prefix]="Prefix (папка): "
 L[ul_s3_fail]="Не заполнены обязательные поля (Bucket, Access Key, Secret Key)."
 L[ul_s3_not_done]="Настройка S3 не завершена, переключаемся на Telegram."
 L[ul_s3_saved]="Настройки S3 сохранены."
+L[ul_multi_help]="Стрелки: перемещение | Пробел: выбор | Enter: применить"
+L[ul_multi_apply]="Применить выбранные способы"
+L[ul_multi_saved]="Способы отправки обновлены:"
+L[ul_multi_need_one]="Выберите хотя бы один способ отправки."
 
 # Настройки конфигурации
 L[st_title]="Настройка конфигурации скрипта"
@@ -1881,6 +1895,69 @@ _json_get_string_field() {
     printf '%s' "$value"
 }
 
+_upload_method_label() {
+    case "$1" in
+        telegram) echo "${L[ul_name_tg]}" ;;
+        s3) echo "${L[ul_name_s3]}" ;;
+        google_drive) echo "${L[ul_name_gd]}" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+_normalize_upload_methods() {
+    local raw="${1:-}"
+    local item
+    local -a methods=()
+    local -A seen=()
+
+    raw="${raw//,/ }"
+    for item in $raw; do
+        case "$item" in
+            telegram|s3|google_drive)
+                if [[ -z "${seen[$item]+x}" ]]; then
+                    seen["$item"]=1
+                    methods+=("$item")
+                fi
+                ;;
+        esac
+    done
+
+    local IFS=","
+    echo "${methods[*]}"
+}
+
+_upload_method_enabled() {
+    local methods_csv="$(_normalize_upload_methods "$1")"
+    local method="$2"
+    [[ ",${methods_csv}," == *",${method},"* ]]
+}
+
+_upload_methods_text() {
+    local methods_csv="$(_normalize_upload_methods "$1")"
+    local -a methods labels
+    local method
+    if [[ -z "$methods_csv" ]]; then
+        echo "${L[not_set]}"
+        return 0
+    fi
+
+    IFS=',' read -r -a methods <<< "$methods_csv"
+    for method in "${methods[@]}"; do
+        labels+=("$(_upload_method_label "$method")")
+    done
+
+    local IFS=", "
+    echo "${labels[*]}"
+}
+
+_s3_is_configured() {
+    [[ -n "${CFG_S3_BUCKET:-}" && -n "${CFG_S3_ACCESS_KEY:-}" && -n "${CFG_S3_SECRET_KEY:-}" ]]
+}
+
+_gd_is_configured() {
+    [[ -n "${CFG_GD_CLIENT_ID:-}" && -n "${CFG_GD_CLIENT_SECRET:-}" && -n "${CFG_GD_REFRESH_TOKEN:-}" ]]
+}
+
 ensure_runtime_dirs() {
     local cfg_dir
     cfg_dir="$(dirname "$CONFIG_FILE")"
@@ -2058,6 +2135,9 @@ save_project_config() {
     project_file="$(_project_file_path "$project_id")"
     mkdir -p "$PROJECTS_DIR" || return 1
 
+    CFG_UPLOAD_METHOD="$(_normalize_upload_methods "${CFG_UPLOAD_METHOD:-telegram}")"
+    [[ -z "$CFG_UPLOAD_METHOD" ]] && CFG_UPLOAD_METHOD="telegram"
+
     retention_days_legacy=$(_period_to_days "${CFG_RETENTION_DAILY_PERIOD:-month}")
     if [[ "${CFG_STORAGE_KEEP_MONTHLY:-true}" == "true" ]]; then
         s3_retention_days_legacy="30"
@@ -2129,6 +2209,8 @@ load_project_config() {
     [[ -f "$project_file" ]] || return 1
     # shellcheck source=/dev/null
     source "$project_file"
+    CFG_UPLOAD_METHOD="$(_normalize_upload_methods "${CFG_UPLOAD_METHOD:-telegram}")"
+    [[ -z "$CFG_UPLOAD_METHOD" ]] && CFG_UPLOAD_METHOD="telegram"
     CFG_PROJECT_ENABLED="${CFG_PROJECT_ENABLED:-true}"
     CFG_BACKUP_DB_ENABLED="${CFG_BACKUP_DB_ENABLED:-true}"
     CFG_BACKUP_DIR_ENABLED="${CFG_BACKUP_DIR_ENABLED:-true}"
@@ -2388,15 +2470,26 @@ setup_upload_method_wizard() {
     ul_choice="$MENU_CHOICE"
 
     case "$ul_choice" in
-        2) setup_s3_config ;;
-        3) setup_gd_config ;;
+        2)
+            if setup_s3_config; then
+                CFG_UPLOAD_METHOD="s3"
+            else
+                CFG_UPLOAD_METHOD="telegram"
+            fi
+            ;;
+        3)
+            if setup_gd_config; then
+                CFG_UPLOAD_METHOD="google_drive"
+            else
+                CFG_UPLOAD_METHOD="telegram"
+            fi
+            ;;
         *) CFG_UPLOAD_METHOD="telegram" ;;
     esac
 }
 
 # Настройка S3 (используется и из wizard, и из settings)
 setup_s3_config() {
-    CFG_UPLOAD_METHOD="s3"
     echo ""
     echo "${L[ul_s3_enter]}"
     read -rp "${L[ul_s3_enter_endpoint]}" CFG_S3_ENDPOINT
@@ -2412,7 +2505,6 @@ setup_s3_config() {
     if [[ -z "$CFG_S3_BUCKET" || -z "$CFG_S3_ACCESS_KEY" || -z "$CFG_S3_SECRET_KEY" ]]; then
         log_warn "${L[ul_s3_fail]}"
         log_warn "${L[ul_s3_not_done]}"
-        CFG_UPLOAD_METHOD="telegram"
         return 1
     fi
     log_info "${L[ul_s3_saved]}"
@@ -2420,7 +2512,6 @@ setup_s3_config() {
 
 # Настройка Google Drive
 setup_gd_config() {
-    CFG_UPLOAD_METHOD="google_drive"
     echo ""
     echo "${L[ul_gd_enter]}"
     echo "${L[cfg_gd_no_tokens]}"
@@ -2430,7 +2521,6 @@ setup_gd_config() {
     if [[ -z "$CFG_GD_CLIENT_ID" || -z "$CFG_GD_CLIENT_SECRET" ]]; then
         log_warn "${L[cfg_gd_missing]}"
         log_warn "${L[cfg_gd_switch_tg]}"
-        CFG_UPLOAD_METHOD="telegram"
         return 1
     fi
 
@@ -2461,7 +2551,6 @@ setup_gd_config() {
         fi
         log_error "${L[cfg_gd_fail]}"
         log_warn "${L[cfg_gd_incomplete2]}"
-        CFG_UPLOAD_METHOD="telegram"
         return 1
     fi
 
@@ -2905,20 +2994,42 @@ gd_upload() {
     cat "$file" >> "$body_file"
     printf -- "\r\n--%s--\r\n" "$boundary" >> "$body_file"
 
-    local response
-    response=$(curl -s -X POST "$GD_API_UPLOAD" \
+    local response_with_code response http_code
+    response_with_code="$(curl -sS -X POST "$GD_API_UPLOAD" \
         -H "Authorization: Bearer ${access_token}" \
         -H "Content-Type: multipart/related; boundary=${boundary}" \
-        --data-binary "@${body_file}")
+        --data-binary "@${body_file}" \
+        -w $'\n%{http_code}' 2>/dev/null || true)"
+    http_code="${response_with_code##*$'\n'}"
+    response="${response_with_code%$'\n'*}"
 
     rm -f "$body_file"
 
     local file_id
-    file_id=$(echo "$response" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+    file_id="$(_json_get_string_field "$response" "id")"
+
+    if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+        if [[ -n "$file_id" ]]; then
+            log_info "${L[gd_upload_ok]} (id: ${file_id})"
+        else
+            log_info "${L[gd_upload_ok]}"
+        fi
+        return 0
+    fi
+
     if [[ -z "$file_id" ]]; then
         log_error "${L[gd_upload_err]}"
+        local gd_error gd_message
+        gd_error="$(_json_get_string_field "$response" "error")"
+        gd_message="$(_json_get_string_field "$response" "message")"
+        if [[ -n "$gd_error" || -n "$gd_message" ]]; then
+            log_warn "Google Drive API error: ${gd_error:-unknown}${gd_message:+ (${gd_message})}"
+        fi
+        [[ -n "$http_code" ]] && log_warn "Google Drive HTTP status: $http_code"
         return 1
     fi
+
+    # Защита от нестандартных ответов: если API вернул id, считаем загрузку успешной.
     log_info "${L[gd_upload_ok]} (id: ${file_id})"
     return 0
 }
@@ -3404,25 +3515,54 @@ EOF
 _send_backup() {
     local file="$1"
     local size; size=$(format_size "$file")
+    local methods_csv method
+    local -a methods=()
+    local any_success="false"
+    local had_failure="false"
     log_step "${L[bk_sending]} ($size)"
 
-    case "$CFG_UPLOAD_METHOD" in
-        telegram)
-            _send_via_telegram "$file" "$size"
-            ;;
-        s3)
-            _send_via_s3 "$file"
-            ;;
-        google_drive)
-            _send_via_gd "$file"
-            ;;
-        *)
-            log_error "${L[bk_unknown_method]} ${CFG_UPLOAD_METHOD}"
-            log_warn "${L[bk_not_sent]}"
-            log_info "${L[bk_saved_local]} $file"
-            return 1
-            ;;
-    esac
+    methods_csv="$(_normalize_upload_methods "${CFG_UPLOAD_METHOD:-telegram}")"
+    [[ -z "$methods_csv" ]] && methods_csv="telegram"
+    CFG_UPLOAD_METHOD="$methods_csv"
+    IFS=',' read -r -a methods <<< "$methods_csv"
+
+    for method in "${methods[@]}"; do
+        case "$method" in
+            telegram)
+                if _send_via_telegram "$file" "$size"; then
+                    any_success="true"
+                else
+                    had_failure="true"
+                fi
+                ;;
+            s3)
+                if _send_via_s3 "$file"; then
+                    any_success="true"
+                else
+                    had_failure="true"
+                fi
+                ;;
+            google_drive)
+                if _send_via_gd "$file"; then
+                    any_success="true"
+                else
+                    had_failure="true"
+                fi
+                ;;
+            *)
+                log_error "${L[bk_unknown_method]} ${method}"
+                had_failure="true"
+                ;;
+        esac
+    done
+
+    if [[ "$any_success" != "true" ]]; then
+        log_warn "${L[bk_not_sent]}"
+        log_info "${L[bk_saved_local]} $file"
+        return 1
+    fi
+
+    [[ "$had_failure" == "true" ]] && return 1 || return 0
 }
 
 _send_via_telegram() {
@@ -5322,10 +5462,10 @@ _render_projects_overview() {
     echo "  ${table_line}"
 
     for id in "${ids[@]}"; do
-        local name db_type upload_method status_label db_label upload_label project_enabled
+        local name db_type upload_methods status_label db_label upload_label project_enabled
         name="$(project_display_name "$id")"
         db_type="$(_project_cfg_value "$id" "CFG_DB_TYPE" "none")"
-        upload_method="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "telegram")"
+        upload_methods="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "telegram")"
         project_enabled="$(_project_cfg_value "$id" "CFG_PROJECT_ENABLED" "true")"
 
         if [[ "$project_enabled" == "true" ]]; then
@@ -5340,12 +5480,7 @@ _render_projects_overview() {
             none) db_label="None" ;;
             *) db_label="$db_type" ;;
         esac
-        case "$upload_method" in
-            telegram) upload_label="Telegram" ;;
-            s3) upload_label="S3" ;;
-            google_drive) upload_label="Google Drive" ;;
-            *) upload_label="$upload_method" ;;
-        esac
+        upload_label="$(_upload_methods_text "$upload_methods")"
 
         printf "  | %-14s | %-24s | %-10s | %-12s | %-16s |\n" \
             "$(_trim_cell "$id" 14)" \
@@ -5361,6 +5496,8 @@ _render_projects_overview() {
 _render_upload_methods_overview() {
     local ids=()
     local id method methods_text
+    local methods_csv
+    local -a parsed_methods=()
     local -a methods=()
     local -A seen=()
 
@@ -5369,12 +5506,16 @@ _render_upload_methods_overview() {
     done < <(list_project_ids)
 
     for id in "${ids[@]}"; do
-        method="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "")"
-        [[ -z "$method" ]] && continue
-        if [[ -z "${seen[$method]+x}" ]]; then
-            seen["$method"]=1
-            methods+=("$method")
-        fi
+        methods_csv="$(_normalize_upload_methods "$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "")")"
+        [[ -z "$methods_csv" ]] && continue
+        IFS=',' read -r -a parsed_methods <<< "$methods_csv"
+        for method in "${parsed_methods[@]}"; do
+            [[ -z "$method" ]] && continue
+            if [[ -z "${seen[$method]+x}" ]]; then
+                seen["$method"]=1
+                methods+=("$(_upload_method_label "$method")")
+            fi
+        done
     done
 
     if (( ${#methods[@]} == 0 )); then
@@ -5424,23 +5565,110 @@ _render_main_status() {
 }
 
 _menu_choose_upload_method() {
-    local ul_choice
-    clear
-    echo ""
-    echo "${L[ul_title]}"
-    echo "  ${L[ul_current]} ${CFG_UPLOAD_METHOD}"
-    echo ""
-    _menu_select "1 2 3 0" "1" "${L[ul_set_tg]}" "${L[ul_set_s3]}" "${L[ul_set_gd]}" "${L[back]}"
-    ul_choice="$MENU_CHOICE"
-    case "$ul_choice" in
-        1) CFG_UPLOAD_METHOD="telegram"; log_info "${L[ul_tg_set]}" ;;
-        2) setup_s3_config ;;
-        3) setup_gd_config ;;
-        0) return ;;
-        *) log_warn "${L[invalid_input_select]}" ;;
-    esac
-    save_config "$CONFIG_FILE"
-    press_enter
+    local cursor=0 key seq
+    local use_tg="false" use_s3="false" use_gd="false"
+    local methods_current methods_selected methods_text
+
+    methods_current="$(_normalize_upload_methods "${CFG_UPLOAD_METHOD:-telegram}")"
+    [[ -z "$methods_current" ]] && methods_current="telegram"
+    CFG_UPLOAD_METHOD="$methods_current"
+
+    _upload_method_enabled "$methods_current" "telegram" && use_tg="true"
+    _upload_method_enabled "$methods_current" "s3" && use_s3="true"
+    _upload_method_enabled "$methods_current" "google_drive" && use_gd="true"
+
+    while true; do
+        clear
+        echo ""
+        echo "${L[ul_title]}"
+        echo "────────────────────────────────"
+        echo "  ${L[ul_current]} $(_upload_methods_text "$CFG_UPLOAD_METHOD")"
+        echo "  ${L[ul_multi_help]}"
+        echo ""
+
+        local tg_line s3_line gd_line apply_line back_line
+        [[ "$use_tg" == "true" ]] && tg_line="[x] ${L[ul_name_tg]}" || tg_line="[ ] ${L[ul_name_tg]}"
+        [[ "$use_s3" == "true" ]] && s3_line="[x] ${L[ul_name_s3]}" || s3_line="[ ] ${L[ul_name_s3]}"
+        [[ "$use_gd" == "true" ]] && gd_line="[x] ${L[ul_name_gd]}" || gd_line="[ ] ${L[ul_name_gd]}"
+        apply_line="${L[ul_multi_apply]}"
+        back_line="${L[back]}"
+
+        local -a lines=("$tg_line" "$s3_line" "$gd_line" "$apply_line" "$back_line")
+        local i
+        for i in "${!lines[@]}"; do
+            if (( i == cursor )); then
+                echo -e "  ${BOLD}${GREEN}>${NC} ${lines[$i]}"
+            else
+                echo "    ${lines[$i]}"
+            fi
+        done
+
+        IFS= read -rsn1 key || return 1
+        if [[ "$key" == $'\e' ]]; then
+            seq=""
+            while IFS= read -rsn1 -t 0.05 key; do
+                seq+="$key"
+                [[ "$key" =~ [A-Za-z~] ]] && break
+            done
+            case "$seq" in
+                "[A"|"OA") cursor=$(( (cursor - 1 + 5) % 5 )) ;;
+                "[B"|"OB") cursor=$(( (cursor + 1) % 5 )) ;;
+                "[D"|"OD") return 0 ;;
+            esac
+            continue
+        fi
+
+        if [[ "$key" == " " ]]; then
+            case "$cursor" in
+                0) [[ "$use_tg" == "true" ]] && use_tg="false" || use_tg="true" ;;
+                1) [[ "$use_s3" == "true" ]] && use_s3="false" || use_s3="true" ;;
+                2) [[ "$use_gd" == "true" ]] && use_gd="false" || use_gd="true" ;;
+            esac
+            continue
+        fi
+
+        if [[ -z "$key" || "$key" == $'\n' || "$key" == $'\r' ]]; then
+            case "$cursor" in
+                0) [[ "$use_tg" == "true" ]] && use_tg="false" || use_tg="true" ;;
+                1) [[ "$use_s3" == "true" ]] && use_s3="false" || use_s3="true" ;;
+                2) [[ "$use_gd" == "true" ]] && use_gd="false" || use_gd="true" ;;
+                3)
+                    methods_selected=""
+                    [[ "$use_tg" == "true" ]] && methods_selected="${methods_selected:+$methods_selected,}telegram"
+                    [[ "$use_s3" == "true" ]] && methods_selected="${methods_selected:+$methods_selected,}s3"
+                    [[ "$use_gd" == "true" ]] && methods_selected="${methods_selected:+$methods_selected,}google_drive"
+
+                    if [[ -z "$methods_selected" ]]; then
+                        log_warn "${L[ul_multi_need_one]}"
+                        press_enter
+                        continue
+                    fi
+
+                    if [[ "$use_s3" == "true" ]] && ! _s3_is_configured; then
+                        if ! setup_s3_config; then
+                            press_enter
+                            continue
+                        fi
+                    fi
+
+                    if [[ "$use_gd" == "true" ]] && ! _gd_is_configured; then
+                        if ! setup_gd_config; then
+                            press_enter
+                            continue
+                        fi
+                    fi
+
+                    CFG_UPLOAD_METHOD="$methods_selected"
+                    methods_text="$(_upload_methods_text "$CFG_UPLOAD_METHOD")"
+                    log_info "${L[ul_multi_saved]} ${methods_text}"
+                    save_config "$CONFIG_FILE"
+                    press_enter
+                    return 0
+                    ;;
+                4) return 0 ;;
+            esac
+        fi
+    done
 }
 
 _select_connected_project() {

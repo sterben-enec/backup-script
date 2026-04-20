@@ -154,7 +154,7 @@ CFG_DB_CONTAINER=postgres
 CFG_DB_USER=postgres
 CFG_DB_NAME=support
 
-CFG_UPLOAD_METHOD=s3           # telegram | s3 | google_drive
+CFG_UPLOAD_METHOD=telegram,google_drive   # один или несколько: telegram,s3,google_drive
 CFG_S3_ENDPOINT=https://s3.timeweb.cloud
 CFG_S3_BUCKET=my-backups
 CFG_S3_PREFIX=support/
