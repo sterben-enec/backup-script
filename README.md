@@ -1,15 +1,31 @@
-# Backup & Restore
+<h1 align="center">Backup & Restore</h1>
 
-Один скрипт для бэкапа нескольких проектов
+<p align="center">
+  Один скрипт для бэкапа нескольких проектов на Linux-сервере
+</p>
 
-PostgreSQL / MySQL / MongoDB | Docker / External DB | S3 / Telegram / Google Drive
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+  <img src="https://img.shields.io/badge/Shell-Bash%204%2B-4EAA25?logo=gnubash&logoColor=white" alt="Shell">
+  <img src="https://img.shields.io/badge/Version-1.0.0-orange" alt="Version">
+  <img src="https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black" alt="Platform">
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Shell](https://img.shields.io/badge/Shell-Bash%204%2B-green.svg)](#требования)
+<p align="center">
+  <img src="https://img.shields.io/badge/PostgreSQL-supported-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/MySQL-supported-4479A1?logo=mysql&logoColor=white" alt="MySQL">
+  <img src="https://img.shields.io/badge/MongoDB-supported-47A248?logo=mongodb&logoColor=white" alt="MongoDB">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/S3-compatible-FF9900?logo=amazons3&logoColor=white" alt="S3">
+  <img src="https://img.shields.io/badge/Telegram-notifications-26A5E4?logo=telegram&logoColor=white" alt="Telegram">
+  <img src="https://img.shields.io/badge/Google%20Drive-supported-4285F4?logo=googledrive&logoColor=white" alt="Google Drive">
+</p>
 
 ---
 
-## Установка
+## Быстрый старт
 
 ```bash
 curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backup-script/main/backup-restore.sh \
@@ -17,36 +33,32 @@ curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backu
   && ~/backup-restore.sh
 ```
 
-При первом запуске откроется мастер: язык, Telegram, первый проект, БД, способ отправки.
+При первом запуске откроется мастер настройки: язык, Telegram, первый проект, БД, способ отправки.
 
-Скрипт сам создаёт рабочую структуру:
+После установки (под `root`) доступны команды:
 
-- Для `root`: `/var/lib/universal-backup/`
-- Для обычного пользователя: `~/.local/share/universal-backup/`
-- Глобальный конфиг: `.../config/backup.cfg`
-- Профили проектов: `.../config/projects/*.cfg`
-- Локальные архивы: `.../backups/`
-
-Если запуск под `root`, автоматически создаются ссылки:
-
-- `/usr/local/bin/backrest`
-- `/usr/local/bin/backup` (обратная совместимость)
+```bash
+backrest          # интерактивное меню
+backrest backup   # создать бэкап без меню
+backrest restore  # восстановление
+```
 
 ---
 
-## Что умеет
+## Возможности
 
-- **Проекты**: Несколько независимых профилей, переключение/добавление/удаление из меню
-- **Базы данных**: PostgreSQL, MySQL / MariaDB, MongoDB
-- **Подключение к БД**: Docker-контейнер или внешний хост
-- **Что бэкапится**: Дамп БД + директория проекта (целиком или выборочно: папки/файлы)
-- **Хранилища**: S3-совместимые (AWS, Yandex, Timeweb, MinIO и др.), Telegram, Google Drive
-- **Уведомления**: Telegram — статус каждого бэкапа / восстановления
-- **Автоматизация**: Встроенное управление cron (ежечасно / ежедневно / произвольное время)
-- **Ротация**: Автоудаление старых бэкапов локально и в S3
-- **Восстановление**: Интерактивный выбор из локальных файлов или S3
-- **Языки**: Русский, English
-- **Обновление**: Самообновление из GitHub через меню
+| Категория | Что поддерживается |
+|---|---|
+| **Базы данных** | PostgreSQL, MySQL / MariaDB, MongoDB |
+| **Подключение к БД** | Docker-контейнер, внешний хост |
+| **Хранилища** | S3-совместимые (AWS, Yandex, Timeweb, MinIO...), Telegram, Google Drive |
+| **Бэкап файлов** | Директория проекта целиком или выборочно (папки / файлы) |
+| **Уведомления** | Telegram — статус каждого бэкапа и восстановления |
+| **Расписание** | Встроенное управление cron (ежечасно / ежедневно / произвольно) |
+| **Ротация** | Автоудаление старых бэкапов локально и в S3 |
+| **Проекты** | Несколько независимых профилей, переключение из меню |
+| **Языки** | Русский, English |
+| **Обновление** | Самообновление из GitHub через меню |
 
 ---
 
@@ -56,132 +68,59 @@ curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backu
 # Интерактивное меню
 backrest
 
-# Создать бэкап активного проекта (без меню)
+# Создать бэкап активного проекта
 backrest backup
 
 # Восстановление
 backrest restore
 
-# Создать бэкап конкретного проекта
+# Бэкап конкретного проекта
 backrest --project project_id backup
 
-# Использовать другой глобальный конфиг
+# Другой конфиг
 backrest --config /opt/universal-backup/config/backup.cfg
 ```
 
-> `backup` тоже работает, но рекомендуем основной алиас `backrest`.
+> Алиас `backup` тоже работает, но рекомендуется `backrest`.
 
 ---
 
-## Мультипроектный режим
+## Структура рабочей директории
 
-Управление через меню:
+```
+/var/lib/universal-backup/          # root
+~/.local/share/universal-backup/    # обычный пользователь
+├── config/
+│   ├── backup.cfg                  # глобальный конфиг
+│   └── projects/
+│       ├── support.cfg             # профиль проекта
+│       └── store.cfg
+└── backups/
+    └── support_2026-04-17_03-00-00.tar.gz
+```
 
-`Настройка конфигурации` → `Настройки проекта`
-
-Доступно:
-
-- Редактирование активного проекта
-- Переключение активного проекта
-- Добавление нового проекта
-- Удаление проекта
-- Список всех проектов
-
-Идентификатор активного проекта отображается в главном меню и используется в cron-командах.
-
----
-
-## Требования
-
-- `bash >= 4`: обязательно, выполнение скрипта
-- `tar`, `gzip`, `curl`: обязательно, архивирование и API-запросы
-- `docker`: нужен при Docker-БД
-- `aws` CLI: нужен при S3, устанавливается автоматически
-- `pg_dump` / `mysqldump` / `mongodump`: нужны при внешней БД
+Ссылки `/usr/local/bin/backrest` и `/usr/local/bin/backup` создаются автоматически при запуске под `root`.
 
 ---
 
-## Структура бэкапа
+## Структура архива
 
-Каждый бэкап — `.tar.gz` архив:
+Каждый бэкап — один `.tar.gz` файл:
 
-```text
+```
 myproject_2026-04-17_03-00-00.tar.gz
 ├── backup_meta.json       # метаданные (проект, версия, timestamp)
-├── db_dump.dump           # PostgreSQL (.sql для MySQL, .archive для MongoDB)
+├── db_dump.dump           # дамп БД (.sql для MySQL, .archive для MongoDB)
 └── project_dir.tar.gz     # архив директории проекта
 ```
 
-Любой компонент может отсутствовать в зависимости от настроек проекта.
-
----
-
-## Настройка S3
-
-Работает с любым S3-совместимым хранилищем:
-
-- Endpoint URL: `https://s3.timeweb.cloud`
-- Region: `ru-1`
-- Bucket: `my-backups`
-- Access Key: `AKID...`
-- Secret Key: `...`
-- Prefix: `myproject/` (опционально)
-
-Для AWS S3 endpoint можно оставить пустым.
-
----
-
-## Настройка Google Drive
-
-1. Создать проект в [Google Cloud Console](https://console.cloud.google.com/)
-2. Включить **Google Drive API**
-3. Создать **OAuth 2.0 credentials** (тип: Desktop app)
-4. Вставить Client ID и Client Secret в мастер настройки
-5. Перейти по ссылке в браузере, авторизоваться, вставить код — Refresh Token сохранится автоматически
-
----
-
-## Автоматический бэкап (cron)
-
-Настройка через меню `Настройка расписания` (требует root).
-
-- Ежечасно: `0 * * * *`
-- Ежедневно: одно или несколько времён UTC
-
-Скрипт создаёт cron-записи с привязкой к активному проекту:
-
-```text
-0 3 * * * /usr/local/bin/backrest --project support backup # universal-backup: support
-0 15 * * * /usr/local/bin/backrest --project support backup # universal-backup: support
-```
-
----
-
-## Восстановление
-
-```bash
-backrest restore
-```
-
-Источники:
-
-- Локальные файлы из директории бэкапов
-- S3 (скачивает выбранный архив)
-
-При восстановлении скрипт интерактивно спрашивает что восстанавливать: БД и/или директорию проекта.
+Любой компонент может отсутствовать в зависимости от настроек.
 
 ---
 
 ## Конфигурация
 
-Схема хранения:
-
-- **Глобальный конфиг**: язык, Telegram, автообновление, активный проект
-- **Конфиг проекта**: БД, пути проекта, S3/GDrive, retention и т.д.
-
-Права на файлы конфигурации — `600`.
-
-Пример глобального конфига (`config/backup.cfg`):
+### Глобальный конфиг (`config/backup.cfg`)
 
 ```bash
 CFG_VERSION=1.0.0
@@ -196,7 +135,7 @@ CFG_THREAD_ID=''
 CFG_TG_PROXY=''
 ```
 
-Пример профиля проекта (`config/projects/support.cfg`):
+### Профиль проекта (`config/projects/support.cfg`)
 
 ```bash
 CFG_PROJECT_NAME=support
@@ -204,29 +143,79 @@ CFG_PROJECT_DIR=/opt/support
 CFG_BACKUP_DIR=/var/lib/universal-backup/backups
 CFG_RETENTION_DAYS=30
 CFG_BACKUP_DIR_ENABLED=true
-CFG_BACKUP_DIR_MODE=full     # full | selected
-CFG_BACKUP_DIR_ITEMS=''      # список путей при режиме selected
+CFG_BACKUP_DIR_MODE=full       # full | selected
+CFG_BACKUP_DIR_ITEMS=''        # список путей при selected
 
-CFG_DB_TYPE=docker          # none | docker | external
-CFG_DB_ENGINE=postgres      # postgres | mysql | mongodb
+CFG_DB_TYPE=docker             # none | docker | external
+CFG_DB_ENGINE=postgres         # postgres | mysql | mongodb
 CFG_DB_CONTAINER=postgres
 CFG_DB_USER=postgres
 CFG_DB_NAME=support
 
-CFG_UPLOAD_METHOD=s3        # telegram | s3 | google_drive
+CFG_UPLOAD_METHOD=s3           # telegram | s3 | google_drive
 CFG_S3_ENDPOINT=https://s3.timeweb.cloud
 CFG_S3_BUCKET=my-backups
 CFG_S3_PREFIX=support/
 CFG_S3_RETENTION_DAYS=30
 ```
 
+Права на файлы конфигурации — `600`.
+
 ---
 
-## Обновление
+## Настройка хранилищ
 
-Через меню → **Обновление скрипта** (требует root).
+<details>
+<summary><b>S3-совместимое хранилище</b></summary>
 
-Скрипт проверяет версию на GitHub, предлагает обновиться, создаёт резервную копию текущего файла и заменяет его. При ошибке автоматически откатывается.
+Работает с любым S3-совместимым провайдером: AWS, Yandex Cloud, Timeweb, MinIO и др.
+
+| Параметр | Пример |
+|---|---|
+| Endpoint URL | `https://s3.timeweb.cloud` |
+| Region | `ru-1` |
+| Bucket | `my-backups` |
+| Access Key | `AKID...` |
+| Secret Key | `...` |
+| Prefix | `myproject/` (опционально) |
+
+Для AWS S3 endpoint можно оставить пустым.
+
+</details>
+
+<details>
+<summary><b>Google Drive</b></summary>
+
+1. Создать проект в [Google Cloud Console](https://console.cloud.google.com/)
+2. Включить **Google Drive API**
+3. Создать **OAuth 2.0 credentials** (тип: Desktop app)
+4. Вставить Client ID и Client Secret в мастер настройки
+5. Перейти по ссылке в браузере, авторизоваться, вставить код — Refresh Token сохранится автоматически
+
+</details>
+
+---
+
+## Автоматический бэкап (cron)
+
+Настраивается через меню `Настройка расписания` (требует root).
+
+```
+0 3 * * *  /usr/local/bin/backrest --project support backup  # universal-backup: support
+0 15 * * * /usr/local/bin/backrest --project support backup  # universal-backup: support
+```
+
+---
+
+## Требования
+
+| Инструмент | Когда нужен |
+|---|---|
+| `bash >= 4` | обязательно |
+| `tar`, `gzip`, `curl` | обязательно |
+| `docker` | при Docker-БД |
+| `aws` CLI | при S3 (устанавливается автоматически) |
+| `pg_dump` / `mysqldump` / `mongodump` | при внешней БД |
 
 ---
 
