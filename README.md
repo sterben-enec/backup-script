@@ -1,4 +1,4 @@
-<h1 align="center">Backup & Restore</h1>
+<h1 align="center">Backrest - backup & restore</h1>
 
 <p align="center">
   Один скрипт для бэкапа нескольких проектов на Linux-сервере

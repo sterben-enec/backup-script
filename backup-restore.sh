@@ -85,7 +85,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --help|-h)
             cat <<EOF
-Universal Backup & Restore v${SCRIPT_VERSION}
+Backrest - backup & restore v${SCRIPT_VERSION}
 
 Использование:
   $(basename "$0")                                Интерактивное меню
@@ -951,7 +951,7 @@ L[rm_dir_fail]="Error removing directory."
 L[rm_dir_none]="Installation directory not found."
 
 # Menu
-L[menu_title]="UNIVERSAL BACKUP & RESTORE"
+L[menu_title]="Backrest - backup & restore"
 L[menu_version]="Version:"
 L[menu_update_avail]="update available"
 L[menu_project]="Project:"
@@ -1561,7 +1561,7 @@ L[rm_dir_fail]="Ошибка при удалении каталога."
 L[rm_dir_none]="Каталог установки не найден."
 
 # Меню
-L[menu_title]="UNIVERSAL BACKUP & RESTORE"
+L[menu_title]="Backrest - backup & restore"
 L[menu_version]="Версия:"
 L[menu_update_avail]="доступно обновление"
 L[menu_project]="Проект:"
@@ -1815,7 +1815,7 @@ save_global_config() {
     mkdir -p "$dir" "$PROJECTS_DIR" || { log_error "${L[cfg_install_fail]} $dir"; return 1; }
 
     {
-        printf '# Universal Backup — global configuration\n'
+        printf '# Backrest — global configuration\n'
         printf '# Created: %s\n\n' "$(date)"
         printf 'CFG_VERSION=%s\n'           "$CFG_VERSION"
         printf 'CFG_LANG=%s\n'              "$CFG_LANG"
@@ -1839,7 +1839,7 @@ save_project_config() {
     mkdir -p "$PROJECTS_DIR" || return 1
 
     {
-        printf '# Universal Backup — project profile\n'
+        printf '# Backrest — project profile\n'
         printf '# Project ID: %s\n' "$project_id"
         printf '# Created: %s\n\n' "$(date)"
 
@@ -4639,9 +4639,9 @@ _render_projects_overview() {
         return
     fi
 
-    local table_line="+--------------+----------------------+----------+-------------+----------------+"
+    local table_line="+----------------+--------------------------+------------+--------------+------------------+"
     echo "  ${table_line}"
-    printf "  | %-12s | %-20s | %-8s | %-11s | %-14s |\n" \
+    printf "  | %-14s | %-24s | %-10s | %-12s | %-16s |\n" \
         "${L[menu_projects_col_id]}" \
         "${L[menu_projects_col_name]}" \
         "${L[menu_projects_col_db]}" \
@@ -4650,7 +4650,7 @@ _render_projects_overview() {
     echo "  ${table_line}"
 
     for id in "${ids[@]}"; do
-        local name db_type upload_method status_label
+        local name db_type upload_method status_label db_label upload_label
         name="$(project_display_name "$id")"
         db_type="$(_project_cfg_value "$id" "CFG_DB_TYPE" "none")"
         upload_method="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "telegram")"
@@ -4663,12 +4663,25 @@ _render_projects_overview() {
             status_label="${L[menu_projects_status_ready]}"
         fi
 
-        printf "  | %-12s | %-20s | %-8s | %-11s | %-14s |\n" \
-            "$(_trim_cell "$id" 12)" \
-            "$(_trim_cell "$name" 20)" \
-            "$(_trim_cell "$db_type" 8)" \
-            "$(_trim_cell "$upload_method" 11)" \
-            "$(_trim_cell "$status_label" 14)"
+        case "$db_type" in
+            docker) db_label="Docker" ;;
+            external) db_label="External" ;;
+            none) db_label="None" ;;
+            *) db_label="$db_type" ;;
+        esac
+        case "$upload_method" in
+            telegram) upload_label="Telegram" ;;
+            s3) upload_label="S3" ;;
+            google_drive) upload_label="Google Drive" ;;
+            *) upload_label="$upload_method" ;;
+        esac
+
+        printf "  | %-14s | %-24s | %-10s | %-12s | %-16s |\n" \
+            "$(_trim_cell "$id" 14)" \
+            "$(_trim_cell "$name" 24)" \
+            "$(_trim_cell "$db_label" 10)" \
+            "$(_trim_cell "$upload_label" 12)" \
+            "$(_trim_cell "$status_label" 16)"
     done
     echo "  ${table_line}"
     echo ""
@@ -4731,7 +4744,6 @@ _render_tabs_panel() {
 
     echo -e "  ${L[menu_tabs_label]} ${tab_ops}  ${tab_cfg}  ${tab_srv}"
     echo -e "  ${L[menu_tip_tabs]}"
-    echo "  ──────────────────────────────────────────────────────────────"
     echo ""
 }
 
