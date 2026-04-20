@@ -54,8 +54,8 @@ backrest restore  # восстановление
 | **Хранилища** | S3-совместимые (AWS, Yandex, Timeweb, MinIO...), Telegram, Google Drive |
 | **Бэкап файлов** | Директория проекта целиком или выборочно (папки / файлы) |
 | **Уведомления** | Telegram — статус каждого бэкапа и восстановления |
-| **Расписание** | Встроенное управление cron (ежечасно / ежедневно, час 1-24) |
-| **Ротация** | Воронка хранения: локально `ежечасные → ежедневные`, в S3 — `еженедельные / ежемесячные` |
+| **Расписание** | Встроенное управление cron (можно включить одновременно `ежечасно` и `ежедневно`, час 1-24) |
+| **Ротация** | Единая политика хранения для локальных файлов, S3 и Google Drive (`weekly/monthly` или срок в днях) |
 | **Проекты** | Несколько независимых профилей, переключение из меню |
 | **Языки** | Русский, English |
 | **Обновление** | Самообновление из GitHub через меню |
@@ -141,9 +141,10 @@ CFG_TG_PROXY=''
 CFG_PROJECT_NAME=support
 CFG_PROJECT_DIR=/opt/support
 CFG_BACKUP_DIR=/var/lib/universal-backup/backups
-CFG_RETENTION_HOURLY_PERIOD=day   # day | week | month
-CFG_RETENTION_DAILY_PERIOD=month  # day | week | month
+CFG_SCHEDULE_HOURLY_ENABLED=true
+CFG_SCHEDULE_DAILY_ENABLED=false
 CFG_RETENTION_DAILY_HOUR=3        # 1-24
+CFG_TELEGRAM_SEND_MODE=weekly     # hourly | weekly
 CFG_BACKUP_DIR_ENABLED=true
 CFG_BACKUP_DIR_MODE=full       # full | selected
 CFG_BACKUP_DIR_ITEMS=''        # список путей при selected
@@ -160,52 +161,56 @@ CFG_S3_BUCKET=my-backups
 CFG_S3_PREFIX=support/
 CFG_STORAGE_KEEP_WEEKLY=true
 CFG_STORAGE_KEEP_MONTHLY=true
+CFG_RETENTION_DAYS=30              # когда weekly/monthly выключены
 ```
 
 Права на файлы конфигурации — `600`.
 
 ---
 
-## Политика хранения (воронка)
+## Политика хранения
 
-Политика хранения настраивается как воронка:
+Единая политика применяется к:
+- локальным архивам;
+- S3;
+- Google Drive.
 
-`ежечасные -> ежедневные -> (в S3) еженедельные / ежемесячные`
+Telegram не участвует в очистке (туда только отправка и уведомления).
 
 ### Что настраивается
 
 | Блок | Параметр | Варианты |
 |---|---|---|
-| Расписание | Частота бэкапа | `ежечасно` или `ежедневно` |
+| Расписание | Ежечасные бэкапы | `on/off` |
+| Расписание | Ежедневные бэкапы | `on/off` |
 | Расписание | Час ежедневного бэкапа | `1-24` (где `24` = `00:00`) |
-| Локальная воронка | Срок хранения ежечасных | `day` / `week` / `month` |
-| Локальная воронка | Срок хранения ежедневных | `day` / `week` / `month` |
-| Хранилище (S3) | Держать еженедельные | `true` / `false` |
-| Хранилище (S3) | Держать ежемесячные | `true` / `false` |
+| Telegram | Режим отправки | `hourly` / `weekly` |
+| Retention | Хранить недельные | `true` / `false` |
+| Retention | Хранить месячные | `true` / `false` |
+| Retention | Дней хранения | число (`1+`) |
 
-### Как работает воронка локально
+### Как это работает простыми словами
 
-1. Все свежие бэкапы сохраняются как ежечасные в пределах `CFG_RETENTION_HOURLY_PERIOD`.
-2. Более старые бэкапы в пределах `CFG_RETENTION_DAILY_PERIOD` схлопываются до ежедневных: остаётся один бэкап на дату (ближайший к `CFG_RETENTION_DAILY_HOUR`).
-3. Всё, что не попало в эти окна, удаляется.
-
-### Как работает в S3
-
-1. Если включён `CFG_STORAGE_KEEP_WEEKLY=true`, остаётся один реперный бэкап на неделю.
-2. Если включён `CFG_STORAGE_KEEP_MONTHLY=true`, остаётся один реперный бэкап на месяц.
-3. Остальные бэкапы проекта в бакете удаляются политикой retention.
+1. После каждого бэкапа запускается очистка по единому правилу.
+2. Если включены `weekly/monthly`, остаются последние бэкапы за неделю и/или месяц, остальное удаляется.
+3. Если `weekly=false` и `monthly=false`, работает хранение по дням: всё старше `CFG_RETENTION_DAYS` удаляется.
+4. Telegram не чистится: он только получает копию по выбранному режиму отправки.
 
 ### Параметры конфига
 
 ```bash
-# Локальная воронка
-CFG_RETENTION_HOURLY_PERIOD=day   # day | week | month
-CFG_RETENTION_DAILY_PERIOD=month  # day | week | month
-CFG_RETENTION_DAILY_HOUR=3        # 1-24
+# Расписание
+CFG_SCHEDULE_HOURLY_ENABLED=true   # true | false
+CFG_SCHEDULE_DAILY_ENABLED=false   # true | false
+CFG_RETENTION_DAILY_HOUR=3         # 1-24
 
-# S3-слои хранения
-CFG_STORAGE_KEEP_WEEKLY=true      # true | false
-CFG_STORAGE_KEEP_MONTHLY=true     # true | false
+# Telegram
+CFG_TELEGRAM_SEND_MODE=weekly      # hourly | weekly
+
+# Единая политика хранения
+CFG_STORAGE_KEEP_WEEKLY=true       # true | false
+CFG_STORAGE_KEEP_MONTHLY=true      # true | false
+CFG_RETENTION_DAYS=30              # число дней, когда weekly/monthly выключены
 ```
 
 ---
@@ -246,8 +251,11 @@ CFG_STORAGE_KEEP_MONTHLY=true     # true | false
 ## Автоматический бэкап (cron)
 
 Настраивается через меню `Настройка расписания` (требует root):  
-- `Ежечасно` — запуск каждый час.
-- `Ежедневно` — ввод часа в формате `1-24` (по UTC+0).
+- можно отдельно включать `Ежечасно` и `Ежедневно`;
+- для ежедневного задаётся час `1-24` (по UTC+0);
+- Telegram работает по этому же стандартному расписанию:
+  - `hourly` — отправка при каждом запуске;
+  - `weekly` — отправка в недельный слот (воскресенье, час `CFG_RETENTION_DAILY_HOUR`, UTC).
 
 ```
 0 * * * *  /usr/local/bin/backrest --project support backup  # universal-backup: support (ежечасно)
