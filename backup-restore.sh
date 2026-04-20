@@ -284,6 +284,57 @@ cleanup_tmpdir() {
     [[ -n "$dir" && -d "$dir" ]] && rm -rf "$dir"
 }
 
+# Проверить, что файл безопасен для source:
+# — обычный файл, не симлинк на внешний путь,
+# — доступен на запись только владельцу (не group/world-writable).
+_assert_safe_source() {
+    local file="$1"
+    [[ -f "$file" ]] || { log_error "Файл не найден: $file"; return 1; }
+    local perms
+    perms=$(stat -c '%a' "$file" 2>/dev/null || stat -f '%Lp' "$file" 2>/dev/null || echo "")
+    if [[ -n "$perms" ]]; then
+        local group_write=$(( (8#$perms & 8#020) != 0 ))
+        local world_write=$(( (8#$perms & 8#002) != 0 ))
+        if (( group_write || world_write )); then
+            log_error "Небезопасные права доступа ($perms) на файл: $file"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Стек временных директорий для безопасного cleanup при вложенных вызовах.
+# Вместо перезаписи глобального trap — регистрируем каждую tmpdir отдельно.
+_TMPDIR_STACK=()
+
+_push_tmpdir() {
+    local dir="$1"
+    _TMPDIR_STACK+=("$dir")
+    # Переустанавливаем trap, чтобы он знал о всех накопленных директориях
+    trap '_cleanup_all_tmpdirs' EXIT INT TERM
+}
+
+_pop_tmpdir() {
+    local dir="$1"
+    cleanup_tmpdir "$dir"
+    local -a new_stack=()
+    local d
+    for d in "${_TMPDIR_STACK[@]}"; do
+        [[ "$d" != "$dir" ]] && new_stack+=("$d")
+    done
+    _TMPDIR_STACK=("${new_stack[@]}")
+    # Сбрасываем trap только если стек пуст
+    (( ${#_TMPDIR_STACK[@]} == 0 )) && trap - EXIT INT TERM
+}
+
+_cleanup_all_tmpdirs() {
+    local d
+    for d in "${_TMPDIR_STACK[@]}"; do
+        cleanup_tmpdir "$d"
+    done
+    _TMPDIR_STACK=()
+}
+
 # Ввод пути с валидацией
 input_path() {
     local prompt="$1"
@@ -327,7 +378,19 @@ install_docker() {
         return 1
     fi
     log_step "${L[docker_installing]}"
-    curl -fsSL https://get.docker.com | bash
+    local tmp_installer; tmp_installer=$(mktemp)
+    if ! curl -fsSL https://get.docker.com -o "$tmp_installer"; then
+        rm -f "$tmp_installer"
+        log_error "${L[docker_install_fail]}"
+        return 1
+    fi
+    if ! head -1 "$tmp_installer" | grep -q "bash\|sh"; then
+        rm -f "$tmp_installer"
+        log_error "${L[docker_install_fail]}"
+        return 1
+    fi
+    bash "$tmp_installer"
+    rm -f "$tmp_installer"
     if command -v docker &>/dev/null; then
         log_info "${L[docker_installed]}"
     else
@@ -672,15 +735,15 @@ L[cron_off]="Automatic backup disabled."
 L[cron_enable]="Enable / overwrite schedule"
 L[cron_disable]="Disable automatic backup"
 L[cron_variant]="Select schedule type:"
-L[cron_time]="Enter daily backup hour (1-24)"
+L[cron_time]="Enter daily backup hour (0-23 or 24 for midnight)"
 L[cron_hourly]="Hourly"
 L[cron_daily]="Daily"
 L[cron_enter_utc]="Enter daily hour in UTC+0."
-L[cron_time_space]="Hour (1-24, Enter — %s): "
+L[cron_time_space]="Hour (0-23 or 24 for midnight, Enter — %s): "
 L[cron_bad_value]="Invalid time value:"
-L[cron_hm_range]="(hour must be in range 1-24)."
+L[cron_hm_range]="(hour must be in range 0-24, where 24 = midnight)."
 L[cron_bad_fmt]="Invalid time format:"
-L[cron_expect_hhmm]="(expected integer hour 1-24)."
+L[cron_expect_hhmm]="(expected integer hour 0-24)."
 L[cron_bad_choice]="Invalid choice."
 L[cron_err_input]="Schedule not set due to input errors."
 L[cron_setting]="Setting up cron job..."
@@ -917,7 +980,7 @@ L[st_retention_title]="Backup retention policy"
 L[st_retention_funnel]="Local funnel:"
 L[st_retention_hourly]="Hourly retention:"
 L[st_retention_daily]="Daily retention:"
-L[st_retention_daily_hour]="Daily backup hour (1-24):"
+L[st_retention_daily_hour]="Daily backup hour (0-24):"
 L[st_retention_storage]="Storage layers:"
 L[st_retention_weekly]="Weekly snapshots:"
 L[st_retention_monthly]="Monthly snapshots:"
@@ -927,7 +990,7 @@ L[st_retention_change_hour]="Change daily hour"
 L[st_retention_toggle_weekly]="Toggle weekly storage"
 L[st_retention_toggle_monthly]="Toggle monthly storage"
 L[st_retention_select_period]="Select retention period:"
-L[st_retention_enter_hour]="Daily hour (1-24, Enter — %s): "
+L[st_retention_enter_hour]="Daily hour (0-24, Enter — %s): "
 L[st_retention_period_ok]="Retention period updated."
 L[st_retention_hour_ok]="Daily hour updated:"
 L[st_retention_weekly_ok]="Weekly storage updated:"
@@ -1326,15 +1389,15 @@ L[cron_off]="Автоматический бэкап выключен."
 L[cron_enable]="Включить / перезаписать расписание"
 L[cron_disable]="Выключить автоматический бэкап"
 L[cron_variant]="Выберите вариант расписания:"
-L[cron_time]="Введите час ежедневного бэкапа (1-24)"
+L[cron_time]="Введите час ежедневного бэкапа (0-23 или 24 для полуночи)"
 L[cron_hourly]="Ежечасно"
 L[cron_daily]="Ежедневно"
 L[cron_enter_utc]="Введите час ежедневного запуска по UTC+0."
-L[cron_time_space]="Час (1-24, Enter — %s): "
+L[cron_time_space]="Час (0-23 или 24 для полуночи, Enter — %s): "
 L[cron_bad_value]="Неверное значение времени:"
-L[cron_hm_range]="(час должен быть в диапазоне 1-24)."
+L[cron_hm_range]="(час должен быть в диапазоне 0-24, где 24 = полночь)."
 L[cron_bad_fmt]="Неверный формат времени:"
-L[cron_expect_hhmm]="(ожидается целое число 1-24)."
+L[cron_expect_hhmm]="(ожидается целое число 0-24)."
 L[cron_bad_choice]="Неверный выбор."
 L[cron_err_input]="Расписание не настроено из-за ошибок ввода."
 L[cron_setting]="Настройка cron-задачи..."
@@ -1571,7 +1634,7 @@ L[st_retention_title]="Политика хранения бэкапов"
 L[st_retention_funnel]="Локальная воронка:"
 L[st_retention_hourly]="Хранение ежечасных:"
 L[st_retention_daily]="Хранение ежедневных:"
-L[st_retention_daily_hour]="Час ежедневного бэкапа (1-24):"
+L[st_retention_daily_hour]="Час ежедневного бэкапа (0-24):"
 L[st_retention_storage]="Уровни хранения в хранилище:"
 L[st_retention_weekly]="Еженедельные снимки:"
 L[st_retention_monthly]="Ежемесячные снимки:"
@@ -1581,7 +1644,7 @@ L[st_retention_change_hour]="Изменить час ежедневного бэ
 L[st_retention_toggle_weekly]="Переключить еженедельное хранение"
 L[st_retention_toggle_monthly]="Переключить ежемесячное хранение"
 L[st_retention_select_period]="Выберите период хранения:"
-L[st_retention_enter_hour]="Час ежедневного бэкапа (1-24, Enter — %s): "
+L[st_retention_enter_hour]="Час ежедневного бэкапа (0-24, Enter — %s): "
 L[st_retention_period_ok]="Период хранения обновлён."
 L[st_retention_hour_ok]="Час ежедневного бэкапа обновлён:"
 L[st_retention_weekly_ok]="Еженедельное хранение обновлено:"
@@ -1814,7 +1877,7 @@ _normalize_daily_hour() {
         echo "$fallback"
         return
     fi
-    if (( 10#$value < 1 || 10#$value > 24 )); then
+    if (( 10#$value < 0 || 10#$value > 24 )); then
         echo "$fallback"
         return
     fi
@@ -1889,7 +1952,10 @@ _json_get_string_field() {
     fi
 
     if [[ -z "$value" ]]; then
-        value="$(printf '%s' "$json" | sed -nE "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\\1/p" | head -n1 || true)"
+        # Экранируем $key перед подстановкой в регулярное выражение sed
+        local escaped_key
+        escaped_key=$(printf '%s' "$key" | sed 's/[.[*^$\\]/\\&/g')
+        value="$(printf '%s' "$json" | sed -nE "s/.*\"${escaped_key}\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\\1/p" | head -n1 || true)"
     fi
 
     printf '%s' "$value"
@@ -2057,7 +2123,7 @@ project_display_name() {
             (
                 set +u
                 # shellcheck source=/dev/null
-                source "$project_file" >/dev/null 2>&1
+                _assert_safe_source "$project_file" 2>/dev/null && source "$project_file" >/dev/null 2>&1
                 printf '%s' "${CFG_PROJECT_NAME:-}"
             ) 2>/dev/null || true
         )"
@@ -2207,6 +2273,7 @@ load_project_config() {
     local project_file
     project_file="$(_project_file_path "$project_id")"
     [[ -f "$project_file" ]] || return 1
+    _assert_safe_source "$project_file" || return 1
     # shellcheck source=/dev/null
     source "$project_file"
     CFG_UPLOAD_METHOD="$(_normalize_upload_methods "${CFG_UPLOAD_METHOD:-telegram}")"
@@ -2284,6 +2351,7 @@ load_config() {
     fi
 
     log_step "${L[cfg_loading]}"
+    _assert_safe_source "$real_cfg" || return 1
     # shellcheck source=/dev/null
     source "$real_cfg"
     log_info "${L[cfg_loaded]} $real_cfg"
@@ -2589,7 +2657,7 @@ tg_send_message() {
     local text="$1"
     [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && return 0
 
-    local curl_args=(-s -X POST "${TG_API_BASE}${CFG_BOT_TOKEN}/sendMessage"
+    local curl_args=(-s --connect-timeout 10 --max-time 30 -X POST "${TG_API_BASE}${CFG_BOT_TOKEN}/sendMessage"
         -d "chat_id=${CFG_CHAT_ID}"
         -d "text=${text}"
         -d "parse_mode=HTML"
@@ -2988,6 +3056,8 @@ gd_upload() {
     # Формируем multipart/related тело вручную
     local boundary="boundary_$(date +%s)_$$"
     local body_file; body_file=$(mktemp)
+    # Гарантируем удаление temp-файла при любом исходе
+    trap 'rm -f "$body_file"' RETURN
 
     printf -- "--%s\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n%s\r\n--%s\r\nContent-Type: application/gzip\r\n\r\n" \
         "$boundary" "$metadata" "$boundary" > "$body_file"
@@ -3002,8 +3072,6 @@ gd_upload() {
         -w $'\n%{http_code}' 2>/dev/null || true)"
     http_code="${response_with_code##*$'\n'}"
     response="${response_with_code%$'\n'*}"
-
-    rm -f "$body_file"
 
     local file_id
     file_id="$(_json_get_string_field "$response" "id")"
@@ -3205,12 +3273,18 @@ _mysql_dump_external() {
 # ─────────────────────────────────────────────
 _mongo_dump_docker() {
     local output_file="$1"
-    local auth_args=()
-    [[ -n "$CFG_DB_USER" ]] && auth_args+=(--username "$CFG_DB_USER")
-    [[ -n "$CFG_DB_PASS" ]] && auth_args+=(--password "$CFG_DB_PASS")
-    [[ -n "$CFG_DB_NAME" ]] && auth_args+=(--db "$CFG_DB_NAME")
+    # Используем URI вместо --password, чтобы пароль не был виден в ps aux
+    local uri="mongodb://"
+    if [[ -n "$CFG_DB_USER" && -n "$CFG_DB_PASS" ]]; then
+        uri+="${CFG_DB_USER}:${CFG_DB_PASS}@localhost"
+    elif [[ -n "$CFG_DB_USER" ]]; then
+        uri+="${CFG_DB_USER}@localhost"
+    else
+        uri+="localhost"
+    fi
+    [[ -n "$CFG_DB_NAME" ]] && uri+="/${CFG_DB_NAME}"
 
-    docker exec "$CFG_DB_CONTAINER" mongodump "${auth_args[@]}" --archive \
+    docker exec "$CFG_DB_CONTAINER" mongodump --uri "$uri" --archive \
         > "$output_file"
 }
 
@@ -3224,12 +3298,18 @@ _mongo_dump_external() {
     local host="${CFG_DB_HOST:-localhost}"
     local port="${CFG_DB_PORT:-27017}"
 
-    local auth_args=()
-    [[ -n "$CFG_DB_USER" ]] && auth_args+=(--username "$CFG_DB_USER")
-    [[ -n "$CFG_DB_PASS" ]] && auth_args+=(--password "$CFG_DB_PASS")
-    [[ -n "$CFG_DB_NAME" ]] && auth_args+=(--db "$CFG_DB_NAME")
+    # Используем URI вместо --password, чтобы пароль не был виден в ps aux
+    local uri="mongodb://"
+    if [[ -n "$CFG_DB_USER" && -n "$CFG_DB_PASS" ]]; then
+        uri+="${CFG_DB_USER}:${CFG_DB_PASS}@${host}:${port}"
+    elif [[ -n "$CFG_DB_USER" ]]; then
+        uri+="${CFG_DB_USER}@${host}:${port}"
+    else
+        uri+="${host}:${port}"
+    fi
+    [[ -n "$CFG_DB_NAME" ]] && uri+="/${CFG_DB_NAME}"
 
-    mongodump --host "$host" --port "$port" "${auth_args[@]}" --archive \
+    mongodump --uri "$uri" --archive \
         > "$output_file"
 }
 
@@ -3254,7 +3334,7 @@ db_restore() {
             _mysql_restore "$dump_file" "$container" "$db_name" "$db_user" "$db_pass"
             ;;
         mongodb|mongo)
-            _mongo_restore "$dump_file" "$container"
+            _mongo_restore "$dump_file" "$container" "$db_user" "$db_pass" "$db_name"
             ;;
         *)
             log_error "Неизвестный тип СУБД для восстановления: ${db_engine}"
@@ -3310,8 +3390,19 @@ _mysql_restore() {
 }
 
 _mongo_restore() {
-    local dump_file="$1" container="$2"
-    docker exec -i "$container" mongorestore --drop --archive < "$dump_file"
+    local dump_file="$1" container="$2" db_user="${3:-}" db_pass="${4:-}" db_name="${5:-}"
+    # Используем URI вместо --password, чтобы пароль не был виден в ps aux
+    local uri="mongodb://"
+    if [[ -n "$db_user" && -n "$db_pass" ]]; then
+        uri+="${db_user}:${db_pass}@localhost"
+    elif [[ -n "$db_user" ]]; then
+        uri+="${db_user}@localhost"
+    else
+        uri+="localhost"
+    fi
+    [[ -n "$db_name" ]] && uri+="/${db_name}"
+
+    docker exec -i "$container" mongorestore --uri "$uri" --drop --archive < "$dump_file"
 }
 
 # ─────────────────────────────────────────────
@@ -3336,9 +3427,13 @@ db_test_connection() {
                 -u "$CFG_DB_USER" -e "SELECT 1;" &>/dev/null
             ;;
         mongodb|mongo)
-            mongosh --host "${CFG_DB_HOST:-localhost}" \
-                --port "${CFG_DB_PORT:-27017}" \
-                --eval "db.runCommand({ping:1})" &>/dev/null
+            local _mongo_uri="mongodb://"
+            if [[ -n "$CFG_DB_USER" && -n "$CFG_DB_PASS" ]]; then
+                _mongo_uri+="${CFG_DB_USER}:${CFG_DB_PASS}@${CFG_DB_HOST:-localhost}:${CFG_DB_PORT:-27017}"
+            else
+                _mongo_uri+="${CFG_DB_HOST:-localhost}:${CFG_DB_PORT:-27017}"
+            fi
+            mongosh "$_mongo_uri" --eval "db.runCommand({ping:1})" &>/dev/null
             ;;
         *)
             log_error "Тест не поддерживается для ${CFG_DB_ENGINE}"
@@ -3376,14 +3471,14 @@ do_backup() {
     local backup_dir="$CFG_BACKUP_DIR"
     local tmp_dir; tmp_dir=$(mktemp -d)
     # Гарантировать очистку временной директории при выходе или сигналах
-    trap 'cleanup_tmpdir "${tmp_dir:-}"' EXIT INT TERM
+    _push_tmpdir "$tmp_dir"
     local final_archive="${backup_dir}/${archive_name}"
     local has_data=false
 
     # Создать директорию для бэкапов
     if ! mkdir -p "$backup_dir"; then
         log_error "${L[bk_mkdir_err]} $backup_dir"
-        cleanup_tmpdir "$tmp_dir"
+        _pop_tmpdir "$tmp_dir"
         return 1
     fi
 
@@ -3404,7 +3499,7 @@ do_backup() {
         if db_dump "$dump_file"; then
             has_data=true
         else
-            cleanup_tmpdir "$tmp_dir"
+            _pop_tmpdir "$tmp_dir"
             tg_notify_error "${L[bk_dump_err]}"
             return 1
         fi
@@ -3467,7 +3562,7 @@ do_backup() {
     # ── Проверить, есть ли что архивировать ─────
     if [[ "$has_data" != "true" ]]; then
         log_error "${L[bk_no_data]}"
-        cleanup_tmpdir "$tmp_dir"
+        _pop_tmpdir "$tmp_dir"
         return 1
     fi
 
@@ -3490,13 +3585,11 @@ EOF
     if ! tar -czf "$final_archive" -C "$tmp_dir" . 2>/dev/null; then
         local exit_code=$?
         log_error "${L[bk_final_err]} $exit_code"
-        cleanup_tmpdir "$tmp_dir"
+        _pop_tmpdir "$tmp_dir"
         return 1
     fi
 
-    cleanup_tmpdir "$tmp_dir"
-    # Сбросить trap после явной очистки
-    trap - EXIT INT TERM
+    _pop_tmpdir "$tmp_dir"
     log_info "${L[bk_final_ok]} $final_archive"
 
     # ── 5. Отправить/загрузить ───────────────────
@@ -3840,13 +3933,13 @@ _restore_from_archive() {
     local archive="$1"
     local tmp_dir; tmp_dir=$(mktemp -d)
     # Гарантировать очистку временной директории при выходе или сигналах
-    trap 'cleanup_tmpdir "${tmp_dir:-}"' EXIT INT TERM
+    _push_tmpdir "$tmp_dir"
 
     # Распаковать
     log_step "${L[rs_unpacking]}"
     if ! tar -xzf "$archive" -C "$tmp_dir" 2>/dev/null; then
         log_error "${L[rs_unpack_err]}"
-        cleanup_tmpdir "$tmp_dir"
+        _pop_tmpdir "$tmp_dir"
         return 1
     fi
     log_info "${L[rs_unpacked]}"
@@ -3917,9 +4010,7 @@ _restore_from_archive() {
         fi
     fi
 
-    cleanup_tmpdir "$tmp_dir"
-    # Сбросить trap после явной очистки
-    trap - EXIT INT TERM
+    _pop_tmpdir "$tmp_dir"
 
     if [[ "$restored_anything" == "false" ]]; then
         log_warn "${L[rs_nothing]}"
@@ -4019,7 +4110,7 @@ _parse_daily_hour() {
         log_warn "${L[cron_bad_fmt]} $raw_hour ${L[cron_expect_hhmm]}"
         return 1
     fi
-    if (( 10#$raw_hour < 1 || 10#$raw_hour > 24 )); then
+    if (( 10#$raw_hour < 0 || 10#$raw_hour > 24 )); then
         log_warn "${L[cron_bad_value]} $raw_hour ${L[cron_hm_range]}"
         return 1
     fi
@@ -4076,7 +4167,11 @@ _cron_disable() {
     log_step "${L[cron_disabling]}"
     local current_cron
     current_cron=$({ crontab -l 2>/dev/null || true; } | grep -avF "$(_cron_marker)" || true)
-    echo "$current_cron" | crontab -
+    if [[ -n "$current_cron" ]]; then
+        printf '%s\n' "$current_cron" | crontab -
+    else
+        crontab -r 2>/dev/null || true
+    fi
     log_info "${L[cron_disabled]}"
 }
 
@@ -4087,6 +4182,21 @@ _cron_disable() {
 
 GITHUB_RAW_URL="https://raw.githubusercontent.com/sterben-enec/backrest/main/backup-restore.sh"
 GITHUB_API_URL="https://api.github.com/repos/sterben-enec/backrest/releases/latest"
+
+# Возвращает 0, если версия $1 > $2 (semver-сравнение, числовое по каждой части)
+_semver_gt() {
+    local a="$1" b="$2"
+    [[ "$a" == "$b" ]] && return 1
+    local IFS=.
+    local -a va=($a) vb=($b)
+    local i
+    for (( i=0; i < ${#va[@]} || i < ${#vb[@]}; i++ )); do
+        local na="${va[$i]:-0}" nb="${vb[$i]:-0}"
+        (( 10#$na > 10#$nb )) && return 0
+        (( 10#$na < 10#$nb )) && return 1
+    done
+    return 1
+}
 
 # ─────────────────────────────────────────────
 # Проверить и применить обновление
@@ -4121,7 +4231,7 @@ do_update() {
     echo "${L[upd_current]} $current_version"
     echo "${L[upd_available]} $latest_version"
 
-    if [[ "$latest_version" == "$current_version" ]]; then
+    if ! _semver_gt "$latest_version" "$current_version"; then
         log_info "${L[upd_latest]}"
         press_enter_back
         return
@@ -4161,7 +4271,7 @@ _perform_update() {
 
     # Удалить старые бэкапы скрипта (оставить последний)
     log_step "${L[upd_rm_old_bak]}"
-    find "$(dirname "$script_path")" -maxdepth 1 -name "backup.sh.bak.*" | sort | head -n -1 | xargs rm -f 2>/dev/null || true
+    find "$(dirname "$script_path")" -maxdepth 1 -name "$(basename "$script_path").bak.*" | sort | head -n -1 | xargs rm -f 2>/dev/null || true
 
     # Создать бэкап текущего
     log_step "${L[upd_creating_bak]}"
@@ -4210,10 +4320,10 @@ check_update() {
 
     echo "${L[upd_current]} $current_version"
     echo "${L[upd_available]} $latest_version"
-    if [[ "$latest_version" == "$current_version" ]]; then
-        log_info "${L[upd_latest]}"
-    else
+    if _semver_gt "$latest_version" "$current_version"; then
         log_info "${L[upd_new_avail]} $latest_version"
+    else
+        log_info "${L[upd_latest]}"
     fi
 }
 
@@ -4229,7 +4339,8 @@ check_update_bg() {
 
     local latest_version
     latest_version=$(echo "$latest_info" | grep '"tag_name"' | head -1 | cut -d'"' -f4 | tr -d 'v')
-    [[ -z "$latest_version" || "$latest_version" == "$SCRIPT_VERSION" ]] && return
+    [[ -z "$latest_version" ]] && return
+    ! _semver_gt "$latest_version" "$SCRIPT_VERSION" && return
 
     local changelog
     changelog=$(echo "$latest_info" | grep '"body"' | head -1 | cut -d'"' -f4 | head -c 500)
