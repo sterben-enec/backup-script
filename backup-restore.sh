@@ -124,16 +124,16 @@ fi
 if [[ -t 1 ]]; then
     RED=$'\033[0;31m'
     GREEN=$'\033[0;32m'
-    YELLOW=$'\033[1;33m'
+    YELLOW=$'\033[0;33m'
     BLUE=$'\033[0;34m'
     CYAN=$'\033[0;36m'
     MAGENTA=$'\033[0;35m'
-    WHITE=$'\033[1;37m'
-    BRIGHT_GREEN=$'\033[1;32m'
-    BRIGHT_CYAN=$'\033[1;36m'
-    BRIGHT_YELLOW=$'\033[1;33m'
-    BRIGHT_RED=$'\033[1;31m'
-    BRIGHT_BLUE=$'\033[1;34m'
+    WHITE=$'\033[0m'
+    BRIGHT_GREEN=$'\033[0;32m'
+    BRIGHT_CYAN=$'\033[0;36m'
+    BRIGHT_YELLOW=$'\033[0;33m'
+    BRIGHT_RED=$'\033[0;31m'
+    BRIGHT_BLUE=$'\033[0;34m'
     BOLD=$'\033[1m'
     DIM=$'\033[2m'
     ITALIC=$'\033[3m'
@@ -4111,9 +4111,9 @@ _cron_status_line() {
         fi
 
         local schedule; schedule=$(echo "$current" | awk '{print $1,$2,$3,$4,$5}')
-        echo -e "  ${BRIGHT_GREEN}●${NC} ${L[cron_on]} ${BRIGHT_YELLOW}${schedule}${NC} ${DIM}${L[cron_utc]}${NC}"
+        echo -e "  ${BRIGHT_GREEN}●${NC} ${L[cron_on]} ${BRIGHT_YELLOW}${schedule}${NC} ${NC}${L[cron_utc]}${NC}"
     else
-        echo -e "  ${DIM}○${NC} ${DIM}${L[cron_off]}${NC}"
+        echo -e "  ○ ${L[cron_off]}"
     fi
 }
 
@@ -4733,10 +4733,10 @@ _settings_telegram() {
         clear
         echo ""
         _section_header "[~]" "${L[st_tg_title]}"
-        echo -e "  ${DIM}${L[st_tg_token]}${NC}  ${BRIGHT_YELLOW}${CFG_BOT_TOKEN:+***}${NC}${DIM}${CFG_BOT_TOKEN:-${L[not_set]}}${NC}"
-        echo -e "  ${DIM}${L[st_tg_chatid]}${NC} ${BRIGHT_YELLOW}${CFG_CHAT_ID:-${L[not_set]}}${NC}"
-        echo -e "  ${DIM}${L[st_tg_thread]}${NC} ${CFG_THREAD_ID:-${DIM}${L[not_set]}${NC}}"
-        echo -e "  ${DIM}${L[st_tg_proxy]}${NC}  ${CFG_TG_PROXY:-${DIM}${L[not_set]}${NC}}"
+        echo -e "  ${L[st_tg_token]}  ${BRIGHT_YELLOW}${CFG_BOT_TOKEN:+***}${NC}${CFG_BOT_TOKEN:-${L[not_set]}}"
+        echo -e "  ${L[st_tg_chatid]} ${BRIGHT_YELLOW}${CFG_CHAT_ID:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_tg_thread]} ${CFG_THREAD_ID:-${L[not_set]}}"
+        echo -e "  ${L[st_tg_proxy]}  ${CFG_TG_PROXY:-${L[not_set]}}"
         echo ""
         _menu_select "1 2 3 4 0" "1" \
             "${L[st_tg_change_token]}" "${L[st_tg_change_id]}" "${L[st_tg_change_thread]}" "${L[st_tg_change_proxy]}" "${L[back]}"
@@ -4776,12 +4776,12 @@ _settings_s3() {
     while true; do
         clear
         _section_header "[^]" "${L[st_s3_title]}"
-        echo -e "  ${DIM}${L[st_s3_endpoint]}${NC} ${BRIGHT_YELLOW}${CFG_S3_ENDPOINT:-${DIM}${L[not_set]}}${NC}"
-        echo -e "  ${DIM}${L[st_s3_region]}${NC}   ${BRIGHT_YELLOW}${CFG_S3_REGION:-${DIM}${L[not_set]}}${NC}"
-        echo -e "  ${DIM}${L[st_s3_bucket]}${NC}   ${BRIGHT_YELLOW}${CFG_S3_BUCKET:-${DIM}${L[not_set]}}${NC}"
-        echo -e "  ${DIM}${L[st_s3_access]}${NC}   ${CFG_S3_ACCESS_KEY:+${CYAN}${CFG_S3_ACCESS_KEY:0:8}…${NC}}${CFG_S3_ACCESS_KEY:-${DIM}${L[not_set]}${NC}}"
-        echo -e "  ${DIM}${L[st_s3_secret]}${NC}   ${CFG_S3_SECRET_KEY:+${DIM}***${NC}}${CFG_S3_SECRET_KEY:-${DIM}${L[not_set]}${NC}}"
-        echo -e "  ${DIM}${L[st_s3_prefix]}${NC}   ${CFG_S3_PREFIX:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${L[st_s3_endpoint]} ${BRIGHT_YELLOW}${CFG_S3_ENDPOINT:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_s3_region]}   ${BRIGHT_YELLOW}${CFG_S3_REGION:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_s3_bucket]}   ${BRIGHT_YELLOW}${CFG_S3_BUCKET:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_s3_access]}   ${CFG_S3_ACCESS_KEY:+${CYAN}${CFG_S3_ACCESS_KEY:0:8}…${NC}}${CFG_S3_ACCESS_KEY:-${L[not_set]}}"
+        echo -e "  ${L[st_s3_secret]}   ${CFG_S3_SECRET_KEY:+${DIM}***${NC}}${CFG_S3_SECRET_KEY:-${L[not_set]}}"
+        echo -e "  ${L[st_s3_prefix]}   ${CFG_S3_PREFIX:-${L[not_set]}}${NC}"
         echo ""
         _menu_select "1 2 3 4 5 6 7 0" "1" \
             "${L[st_s3_change_endpoint]}" "${L[st_s3_change_region]}" "${L[st_s3_change_bucket]}" "${L[st_s3_change_access]}" \
@@ -4810,10 +4810,10 @@ _settings_gd() {
     while true; do
         clear
         _section_header "[k]" "${L[st_gd_title]}"
-        echo -e "  ${DIM}${L[st_gd_client_id]}${NC} ${CFG_GD_CLIENT_ID:+${CYAN}${CFG_GD_CLIENT_ID:0:10}…${NC}}${CFG_GD_CLIENT_ID:-${DIM}${L[not_set]}${NC}}"
-        echo -e "  ${DIM}${L[st_gd_secret]}${NC}    ${CFG_GD_CLIENT_SECRET:+${DIM}***${NC}}${CFG_GD_CLIENT_SECRET:-${DIM}${L[not_set]}${NC}}"
-        echo -e "  ${DIM}${L[st_gd_refresh]}${NC}   ${CFG_GD_REFRESH_TOKEN:+${BRIGHT_GREEN}✔ set${NC}}${CFG_GD_REFRESH_TOKEN:-${DIM}${L[not_set]}${NC}}"
-        echo -e "  ${DIM}${L[st_gd_folder]}${NC}    ${CFG_GD_FOLDER_ID:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${L[st_gd_client_id]} ${CFG_GD_CLIENT_ID:+${CYAN}${CFG_GD_CLIENT_ID:0:10}…${NC}}${CFG_GD_CLIENT_ID:-${L[not_set]}}"
+        echo -e "  ${L[st_gd_secret]}    ${CFG_GD_CLIENT_SECRET:+${DIM}***${NC}}${CFG_GD_CLIENT_SECRET:-${L[not_set]}}"
+        echo -e "  ${L[st_gd_refresh]}   ${CFG_GD_REFRESH_TOKEN:+${BRIGHT_GREEN}✔ set${NC}}${CFG_GD_REFRESH_TOKEN:-${L[not_set]}}"
+        echo -e "  ${L[st_gd_folder]}    ${CFG_GD_FOLDER_ID:-${L[not_set]}}${NC}"
         echo ""
         _menu_select "1 2 3 4 0" "1" \
             "${L[st_gd_change_id]}" "${L[st_gd_change_secret]}" "${L[st_gd_change_refresh]}" "${L[st_gd_change_folder]}" "${L[back]}"
@@ -4844,15 +4844,15 @@ _settings_db() {
             external) type_label="${L[st_db_type_ext]}" ;;
             *)        type_label="${L[st_db_type_none]}" ;;
         esac
-        echo -e "  ${DIM}${L[st_db_type]}${NC}    ${BRIGHT_YELLOW}${type_label}${NC}"
-        echo -e "  ${DIM}${L[st_db_engine]}${NC}  ${BRIGHT_YELLOW}${CFG_DB_ENGINE:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${L[st_db_type]}    ${BRIGHT_YELLOW}${type_label}${NC}"
+        echo -e "  ${L[st_db_engine]}  ${BRIGHT_YELLOW}${CFG_DB_ENGINE:-${L[not_set]}}${NC}"
         if [[ "$CFG_DB_TYPE" == "docker" ]]; then
-            echo -e "  ${DIM}${L[st_db_container]}${NC} ${CYAN}${CFG_DB_CONTAINER:-${DIM}${L[not_set]}}${NC}"
+            echo -e "  ${L[st_db_container]} ${CYAN}${CFG_DB_CONTAINER:-${L[not_set]}}${NC}"
         elif [[ "$CFG_DB_TYPE" == "external" ]]; then
-            echo -e "  ${DIM}${L[st_db_host_label]}${NC} ${CYAN}${CFG_DB_HOST:-${DIM}${L[not_set]}}${NC}${DIM}:${NC}${CFG_DB_PORT}"
+            echo -e "  ${L[st_db_host_label]} ${CYAN}${CFG_DB_HOST:-${L[not_set]}}${NC}:${CFG_DB_PORT}"
         fi
-        echo -e "  ${DIM}${L[st_db_user_label]}${NC}  ${CFG_DB_USER:-${DIM}${L[not_set]}}${NC}"
-        echo -e "  ${DIM}${L[st_db_name_label]}${NC}  ${BRIGHT_CYAN}${CFG_DB_NAME:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${L[st_db_user_label]}  ${CFG_DB_USER:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_db_name_label]}  ${BRIGHT_CYAN}${CFG_DB_NAME:-${L[not_set]}}${NC}"
         echo ""
         _menu_select "1 2 3 4 5 6 7 8 0" "1" \
             "${L[st_db_change_type]}" "${L[st_db_change_engine]}" "${L[st_db_change_container]}" "${L[st_db_change_user]}" \
@@ -5184,15 +5184,15 @@ _settings_project() {
     while true; do
         clear
         _section_header "[P]" "${L[st_project_title]}"
-        echo -e "  ${DIM}ID:${NC} ${CYAN}${CFG_ACTIVE_PROJECT:-${L[not_set]}}${NC}"
+        echo -e "  ID: ${CYAN}${CFG_ACTIVE_PROJECT:-${L[not_set]}}${NC}"
         if [[ "${CFG_PROJECT_ENABLED:-true}" == "true" ]]; then
-            echo -e "  ${DIM}${L[st_project_backup_status]}${NC} ${BRIGHT_GREEN}● ${L[st_project_backup_on]}${NC}"
+            echo -e "  ${L[st_project_backup_status]} ${BRIGHT_GREEN}● ${L[st_project_backup_on]}${NC}"
         else
-            echo -e "  ${DIM}${L[st_project_backup_status]}${NC} ${DIM}○ ${L[st_project_backup_off]}${NC}"
+            echo -e "  ${L[st_project_backup_status]} ○ ${L[st_project_backup_off]}"
         fi
-        echo -e "  ${DIM}${L[st_project_name]}${NC} ${BRIGHT_YELLOW}${CFG_PROJECT_NAME:-${DIM}${L[not_set]}}${NC}"
-        echo -e "  ${DIM}${L[st_project_dir]}${NC}  ${CFG_PROJECT_DIR:-${DIM}${L[not_set]}}${NC}"
-        echo -e "  ${DIM}${L[st_project_dir_items]}${NC} $(_project_selected_items_preview)"
+        echo -e "  ${L[st_project_name]} ${BRIGHT_YELLOW}${CFG_PROJECT_NAME:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_project_dir]}  ${CFG_PROJECT_DIR:-${L[not_set]}}"
+        echo -e "  ${L[st_project_dir_items]} $(_project_selected_items_preview)"
         echo ""
         _menu_select "1 2 3 4 5 6 0" "1" \
             "${L[st_project_toggle_backup]}" \
@@ -5592,7 +5592,7 @@ _render_projects_overview() {
 
     echo -e "  ${BOLD}${WHITE}${L[menu_projects_title]}${NC}"
     if (( ${#ids[@]} == 0 )); then
-        echo -e "  ${DIM}${L[menu_projects_empty]}${NC}"
+        echo -e "  ${L[menu_projects_empty]}"
         echo ""
         return
     fi
@@ -5623,13 +5623,13 @@ _render_projects_overview() {
             status_color="${BRIGHT_GREEN}"
         else
             status_label="○ ${L[menu_projects_status_ready]}"
-            status_color="${DIM}${YELLOW}"
+            status_color="${YELLOW}"
         fi
 
         case "$db_type" in
             docker)   db_label="Docker";   db_color="${CYAN}" ;;
             external) db_label="External"; db_color="${YELLOW}" ;;
-            none)     db_label="None";     db_color="${DIM}" ;;
+            none)     db_label="None";     db_color="${NC}" ;;
             *)        db_label="$db_type"; db_color="${NC}" ;;
         esac
         upload_label="$(_upload_methods_text "$upload_methods")"
@@ -5749,16 +5749,16 @@ _menu_choose_upload_method() {
         clear
         echo ""
         _section_header "[>]" "${L[ul_title]}"
-        echo -e "  ${DIM}${L[ul_current]}${NC} ${BRIGHT_YELLOW}$(_upload_methods_text "$CFG_UPLOAD_METHOD")${NC}"
-        echo -e "  ${DIM}${L[ul_multi_help]}${NC}"
+        echo -e "  ${L[ul_current]} ${BRIGHT_YELLOW}$(_upload_methods_text "$CFG_UPLOAD_METHOD")${NC}"
+        echo -e "  ${L[ul_multi_help]}"
         echo ""
 
         local tg_line s3_line gd_line apply_line back_line
-        [[ "$use_tg" == "true" ]] && tg_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_tg]}" || tg_line="${DIM}[ ]${NC} ${L[ul_name_tg]}"
-        [[ "$use_s3" == "true" ]] && s3_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_s3]}" || s3_line="${DIM}[ ]${NC} ${L[ul_name_s3]}"
-        [[ "$use_gd" == "true" ]] && gd_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_gd]}" || gd_line="${DIM}[ ]${NC} ${L[ul_name_gd]}"
+        [[ "$use_tg" == "true" ]] && tg_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_tg]}" || tg_line="[ ] ${L[ul_name_tg]}"
+        [[ "$use_s3" == "true" ]] && s3_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_s3]}" || s3_line="[ ] ${L[ul_name_s3]}"
+        [[ "$use_gd" == "true" ]] && gd_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_gd]}" || gd_line="[ ] ${L[ul_name_gd]}"
         apply_line="${BRIGHT_CYAN}${L[ul_multi_apply]}${NC}"
-        back_line="${DIM}${L[back]}${NC}"
+        back_line="${L[back]}"
 
         local -a lines=("$tg_line" "$s3_line" "$gd_line" "$apply_line" "$back_line")
         local i
