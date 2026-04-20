@@ -576,15 +576,22 @@ L[bk_s3_err_tg]="Error uploading backup to S3."
 L[bk_s3_notify_ok]="Success notification sent to Telegram."
 L[bk_s3_notify_fail]="Failed to send notification to Telegram."
 L[bk_s3_impossible]="Backup file not found. Upload to S3 impossible."
-L[bk_s3_retention]="Cleaning old S3 backups (older than %s days)..."
+L[bk_s3_retention]="Applying S3 retention policy (weekly: %s, monthly: %s)..."
 L[bk_s3_retention_ok]="S3 cleanup complete."
+L[bk_s3_retention_skip]="S3 retention skipped: weekly/monthly storage disabled."
+L[bk_s3_retention_kept]="Kept in S3: weekly %s, monthly %s, total %s."
+L[bk_s3_retention_deleted]="Deleted from S3: %s"
 L[bk_unknown_method]="Unknown upload method:"
 L[bk_not_sent]="Backup not sent."
 L[bk_file_missing]="Final backup file not found:"
 L[bk_impossible]="Sending impossible."
 L[bk_gd_impossible]="Backup file not found. Upload to Google Drive impossible."
-L[bk_retention]="Applying retention policy (keeping last %s days)..."
-L[bk_retention_ok]="Old backups removed."
+L[bk_retention]="Applying local retention funnel..."
+L[bk_retention_ok]="Local retention complete."
+L[bk_retention_none]="No local backups found for retention."
+L[bk_retention_funnel]="Funnel: hourly %s -> daily %s (daily hour %s)."
+L[bk_retention_kept]="Kept backups: hourly %s, daily %s."
+L[bk_retention_deleted]="Deleted local backups: %s"
 L[bk_mkdir_err]="Failed to create backup directory"
 
 # Telegram notifications
@@ -665,15 +672,15 @@ L[cron_off]="Automatic backup disabled."
 L[cron_enable]="Enable / overwrite schedule"
 L[cron_disable]="Disable automatic backup"
 L[cron_variant]="Select schedule type:"
-L[cron_time]="Enter time (e.g.: 02:00 14:00)"
+L[cron_time]="Enter daily backup hour (1-24)"
 L[cron_hourly]="Hourly"
 L[cron_daily]="Daily"
-L[cron_enter_utc]="Enter time in UTC+0 (e.g. 03:00):"
-L[cron_time_space]="Time separated by spaces: "
+L[cron_enter_utc]="Enter daily hour in UTC+0."
+L[cron_time_space]="Hour (1-24, Enter — %s): "
 L[cron_bad_value]="Invalid time value:"
-L[cron_hm_range]="(hours 0-23, minutes 0-59)."
+L[cron_hm_range]="(hour must be in range 1-24)."
 L[cron_bad_fmt]="Invalid time format:"
-L[cron_expect_hhmm]="(expected HH:MM)."
+L[cron_expect_hhmm]="(expected integer hour 1-24)."
 L[cron_bad_choice]="Invalid choice."
 L[cron_err_input]="Schedule not set due to input errors."
 L[cron_setting]="Setting up cron job..."
@@ -714,8 +721,6 @@ L[ul_s3_enter_secret]="Secret Key: "
 L[ul_s3_prefix_info1]="Optional: specify a prefix (folder) for backups in the bucket."
 L[ul_s3_prefix_info2]="Leave empty to upload to bucket root."
 L[ul_s3_enter_prefix]="Prefix (folder): "
-L[ul_s3_retain_info]="Backup retention period in S3 (days)."
-L[ul_s3_enter_retain]="S3 retention days (Enter — %s days): "
 L[ul_s3_fail]="Required fields missing (Bucket, Access Key, Secret Key)."
 L[ul_s3_not_done]="S3 setup not complete, switching to Telegram."
 L[ul_s3_saved]="S3 settings saved."
@@ -898,16 +903,29 @@ L[pick_cancel]="Selection cancelled."
 L[pick_up]="[..] Up"
 L[pick_confirm_item]="[Confirm selection]"
 
+L[period_day]="day"
+L[period_week]="week"
+L[period_month]="month"
 L[st_retention_title]="Backup retention policy"
-L[st_retention_local]="Local retention:"
-L[st_retention_s3]="S3 retention:"
-L[st_retention_days]="days"
-L[st_retention_change_local]="Change local retention period"
-L[st_retention_change_s3]="Change S3 retention period"
-L[st_retention_enter_local]="Local retention days (Enter — %s): "
-L[st_retention_enter_s3]="S3 retention days (Enter — %s): "
-L[st_retention_local_ok]="Local retention updated:"
-L[st_retention_s3_ok]="S3 retention updated:"
+L[st_retention_funnel]="Local funnel:"
+L[st_retention_hourly]="Hourly retention:"
+L[st_retention_daily]="Daily retention:"
+L[st_retention_daily_hour]="Daily backup hour (1-24):"
+L[st_retention_storage]="Storage layers:"
+L[st_retention_weekly]="Weekly snapshots:"
+L[st_retention_monthly]="Monthly snapshots:"
+L[st_retention_change_hourly]="Change hourly retention"
+L[st_retention_change_daily]="Change daily retention"
+L[st_retention_change_hour]="Change daily hour"
+L[st_retention_toggle_weekly]="Toggle weekly storage"
+L[st_retention_toggle_monthly]="Toggle monthly storage"
+L[st_retention_select_period]="Select retention period:"
+L[st_retention_enter_hour]="Daily hour (1-24, Enter — %s): "
+L[st_retention_period_ok]="Retention period updated."
+L[st_retention_hour_ok]="Daily hour updated:"
+L[st_retention_weekly_ok]="Weekly storage updated:"
+L[st_retention_monthly_ok]="Monthly storage updated:"
+L[st_retention_invalid_hour]="Invalid hour. Enter a number from 1 to 24."
 
 L[st_lang_current]="Current language:"
 L[st_lang_changed]="Language changed to:"
@@ -1205,15 +1223,22 @@ L[bk_s3_err_tg]="Ошибка загрузки бэкапа в S3."
 L[bk_s3_notify_ok]="Уведомление об успехе отправлено в Telegram."
 L[bk_s3_notify_fail]="Не удалось отправить уведомление в Telegram."
 L[bk_s3_impossible]="Файл бэкапа не найден. Загрузка в S3 невозможна."
-L[bk_s3_retention]="Очистка старых бэкапов в S3 (старше %s дней)..."
+L[bk_s3_retention]="Применение политики хранения в S3 (еженедельные: %s, ежемесячные: %s)..."
 L[bk_s3_retention_ok]="Очистка S3 завершена."
+L[bk_s3_retention_skip]="Очистка S3 пропущена: еженедельное/ежемесячное хранение отключено."
+L[bk_s3_retention_kept]="Оставлено в S3: еженедельных %s, ежемесячных %s, всего %s."
+L[bk_s3_retention_deleted]="Удалено из S3: %s"
 L[bk_unknown_method]="Неизвестный метод отправки:"
 L[bk_not_sent]="Бэкап не отправлен."
 L[bk_file_missing]="Финальный файл бэкапа не найден:"
 L[bk_impossible]="Отправка невозможна."
 L[bk_gd_impossible]="Файл бэкапа не найден. Загрузка в Google Drive невозможна."
-L[bk_retention]="Применение политики хранения (оставляем за последние %s дней)..."
-L[bk_retention_ok]="Старые бэкапы удалены."
+L[bk_retention]="Применение локальной воронки хранения..."
+L[bk_retention_ok]="Локальная очистка завершена."
+L[bk_retention_none]="Локальные бэкапы для ротации не найдены."
+L[bk_retention_funnel]="Воронка: ежечасные %s -> ежедневные %s (час ежедневного бэкапа %s)."
+L[bk_retention_kept]="Оставлено бэкапов: ежечасных %s, ежедневных %s."
+L[bk_retention_deleted]="Удалено локальных бэкапов: %s"
 L[bk_mkdir_err]="Не удалось создать каталог бэкапов"
 
 # Telegram уведомления
@@ -1294,15 +1319,15 @@ L[cron_off]="Автоматический бэкап выключен."
 L[cron_enable]="Включить / перезаписать расписание"
 L[cron_disable]="Выключить автоматический бэкап"
 L[cron_variant]="Выберите вариант расписания:"
-L[cron_time]="Ввести время (например: 02:00 14:00)"
+L[cron_time]="Введите час ежедневного бэкапа (1-24)"
 L[cron_hourly]="Ежечасно"
 L[cron_daily]="Ежедневно"
-L[cron_enter_utc]="Введите время по UTC+0 (например, 03:00):"
-L[cron_time_space]="Время через пробел: "
+L[cron_enter_utc]="Введите час ежедневного запуска по UTC+0."
+L[cron_time_space]="Час (1-24, Enter — %s): "
 L[cron_bad_value]="Неверное значение времени:"
-L[cron_hm_range]="(часы 0-23, минуты 0-59)."
+L[cron_hm_range]="(час должен быть в диапазоне 1-24)."
 L[cron_bad_fmt]="Неверный формат времени:"
-L[cron_expect_hhmm]="(ожидается HH:MM)."
+L[cron_expect_hhmm]="(ожидается целое число 1-24)."
 L[cron_bad_choice]="Неверный выбор."
 L[cron_err_input]="Расписание не настроено из-за ошибок ввода."
 L[cron_setting]="Настройка cron-задачи..."
@@ -1343,8 +1368,6 @@ L[ul_s3_enter_secret]="Secret Key: "
 L[ul_s3_prefix_info1]="Опционально: укажите префикс (папку) для бэкапов в бакете."
 L[ul_s3_prefix_info2]="Оставьте пустым для загрузки в корень бакета."
 L[ul_s3_enter_prefix]="Prefix (папка): "
-L[ul_s3_retain_info]="Срок хранения бэкапов в S3 (в днях)."
-L[ul_s3_enter_retain]="Срок хранения в S3 (Enter — %s дней): "
 L[ul_s3_fail]="Не заполнены обязательные поля (Bucket, Access Key, Secret Key)."
 L[ul_s3_not_done]="Настройка S3 не завершена, переключаемся на Telegram."
 L[ul_s3_saved]="Настройки S3 сохранены."
@@ -1527,16 +1550,29 @@ L[pick_cancel]="Выбор отменён."
 L[pick_up]="[..] Вверх"
 L[pick_confirm_item]="[Подтвердить выбор]"
 
+L[period_day]="день"
+L[period_week]="неделя"
+L[period_month]="месяц"
 L[st_retention_title]="Политика хранения бэкапов"
-L[st_retention_local]="Локальное хранение:"
-L[st_retention_s3]="Хранение в S3:"
-L[st_retention_days]="дней"
-L[st_retention_change_local]="Изменить срок локального хранения"
-L[st_retention_change_s3]="Изменить срок хранения в S3"
-L[st_retention_enter_local]="Срок локального хранения в днях (Enter — %s): "
-L[st_retention_enter_s3]="Срок хранения в S3 в днях (Enter — %s): "
-L[st_retention_local_ok]="Срок локального хранения обновлён:"
-L[st_retention_s3_ok]="Срок хранения в S3 обновлён:"
+L[st_retention_funnel]="Локальная воронка:"
+L[st_retention_hourly]="Хранение ежечасных:"
+L[st_retention_daily]="Хранение ежедневных:"
+L[st_retention_daily_hour]="Час ежедневного бэкапа (1-24):"
+L[st_retention_storage]="Уровни хранения в хранилище:"
+L[st_retention_weekly]="Еженедельные снимки:"
+L[st_retention_monthly]="Ежемесячные снимки:"
+L[st_retention_change_hourly]="Изменить хранение ежечасных"
+L[st_retention_change_daily]="Изменить хранение ежедневных"
+L[st_retention_change_hour]="Изменить час ежедневного бэкапа"
+L[st_retention_toggle_weekly]="Переключить еженедельное хранение"
+L[st_retention_toggle_monthly]="Переключить ежемесячное хранение"
+L[st_retention_select_period]="Выберите период хранения:"
+L[st_retention_enter_hour]="Час ежедневного бэкапа (1-24, Enter — %s): "
+L[st_retention_period_ok]="Период хранения обновлён."
+L[st_retention_hour_ok]="Час ежедневного бэкапа обновлён:"
+L[st_retention_weekly_ok]="Еженедельное хранение обновлено:"
+L[st_retention_monthly_ok]="Ежемесячное хранение обновлено:"
+L[st_retention_invalid_hour]="Неверный час. Введите число от 1 до 24."
 
 L[st_lang_current]="Текущий язык:"
 L[st_lang_changed]="Язык изменён на:"
@@ -1677,7 +1713,9 @@ CFG_S3_BUCKET=""
 CFG_S3_ACCESS_KEY=""
 CFG_S3_SECRET_KEY=""
 CFG_S3_PREFIX=""
-CFG_S3_RETENTION_DAYS="30"
+CFG_STORAGE_KEEP_WEEKLY="true"
+CFG_STORAGE_KEEP_MONTHLY="true"
+CFG_S3_RETENTION_DAYS="30" # legacy, сохраняется для обратной совместимости
 
 # Google Drive (профиль проекта)
 CFG_GD_CLIENT_ID=""
@@ -1701,7 +1739,10 @@ CFG_DB_PGVER="17"
 CFG_PROJECT_NAME=""
 CFG_PROJECT_DIR=""
 CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
-CFG_RETENTION_DAYS="30"
+CFG_RETENTION_HOURLY_PERIOD="day" # day | week | month
+CFG_RETENTION_DAILY_PERIOD="month" # day | week | month
+CFG_RETENTION_DAILY_HOUR="3"      # 1-24 (24 == 00:00)
+CFG_RETENTION_DAYS="30"           # legacy, сохраняется для обратной совместимости
 CFG_PROJECT_ENABLED="true"
 
 # Флаги включения источников (профиль проекта)
@@ -1709,6 +1750,120 @@ CFG_BACKUP_DB_ENABLED="true"
 CFG_BACKUP_DIR_ENABLED="true"
 CFG_BACKUP_DIR_MODE="full"      # full | selected
 CFG_BACKUP_DIR_ITEMS=""         # newline-separated relative paths from CFG_PROJECT_DIR
+
+_normalize_bool() {
+    local value="${1:-}"
+    local fallback="${2:-false}"
+    case "${value,,}" in
+        1|true|yes|y|on) echo "true" ;;
+        0|false|no|n|off) echo "false" ;;
+        *) echo "$fallback" ;;
+    esac
+}
+
+_normalize_retention_period() {
+    local value="${1:-}"
+    local fallback="${2:-day}"
+    case "$value" in
+        day|week|month) echo "$value" ;;
+        *) echo "$fallback" ;;
+    esac
+}
+
+_period_to_days() {
+    case "$1" in
+        day) echo "1" ;;
+        week) echo "7" ;;
+        *) echo "30" ;;
+    esac
+}
+
+_period_from_legacy_days() {
+    local days="${1:-30}"
+    if ! [[ "$days" =~ ^[0-9]+$ ]]; then
+        echo "month"
+        return
+    fi
+    if (( days <= 1 )); then
+        echo "day"
+    elif (( days <= 7 )); then
+        echo "week"
+    else
+        echo "month"
+    fi
+}
+
+_normalize_daily_hour() {
+    local value="${1:-}"
+    local fallback="${2:-3}"
+    if ! [[ "$value" =~ ^[0-9]+$ ]]; then
+        echo "$fallback"
+        return
+    fi
+    if (( 10#$value < 1 || 10#$value > 24 )); then
+        echo "$fallback"
+        return
+    fi
+    echo "$((10#$value))"
+}
+
+_daily_hour_to_cron_hour() {
+    local daily_hour
+    daily_hour=$(_normalize_daily_hour "${1:-3}" "3")
+    if (( daily_hour == 24 )); then
+        echo "0"
+    else
+        echo "$daily_hour"
+    fi
+}
+
+_period_label() {
+    case "$1" in
+        day) echo "${L[period_day]}" ;;
+        week) echo "${L[period_week]}" ;;
+        month) echo "${L[period_month]}" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+_bool_label() {
+    if [[ "$1" == "true" ]]; then
+        echo "${L[st_auto_update_on]}"
+    else
+        echo "${L[st_auto_update_off]}"
+    fi
+}
+
+_date_to_epoch() {
+    local date_str="$1"
+    date -d "$date_str" +%s 2>/dev/null || date -j -f "%Y-%m-%d %H:%M:%S" "$date_str" +%s 2>/dev/null || true
+}
+
+_epoch_format() {
+    local epoch="$1"
+    local fmt="$2"
+    date -d "@$epoch" +"$fmt" 2>/dev/null || date -r "$epoch" +"$fmt" 2>/dev/null || true
+}
+
+_parse_backup_name_timestamp() {
+    local filename="$1"
+    local project_name="${2:-$CFG_PROJECT_NAME}"
+    if ! [[ "$filename" =~ ^(.+)_([0-9]{4}-[0-9]{2}-[0-9]{2})_([0-9]{2})-([0-9]{2})-([0-9]{2})\.tar\.gz$ ]]; then
+        return 1
+    fi
+    local file_project="${BASH_REMATCH[1]}"
+    [[ "$file_project" != "$project_name" ]] && return 1
+
+    local date_part="${BASH_REMATCH[2]}"
+    local hour_part="${BASH_REMATCH[3]}"
+    local minute_part="${BASH_REMATCH[4]}"
+    local second_part="${BASH_REMATCH[5]}"
+    local epoch
+    epoch=$(_date_to_epoch "${date_part} ${hour_part}:${minute_part}:${second_part}")
+    [[ -z "$epoch" ]] && return 1
+
+    printf '%s\t%s\t%s\t%s\n' "$epoch" "$date_part" "$((10#$hour_part))" "$((10#$minute_part))"
+}
 
 ensure_runtime_dirs() {
     local cfg_dir
@@ -1765,6 +1920,8 @@ reset_project_profile_defaults() {
     CFG_S3_ACCESS_KEY=""
     CFG_S3_SECRET_KEY=""
     CFG_S3_PREFIX=""
+    CFG_STORAGE_KEEP_WEEKLY="true"
+    CFG_STORAGE_KEEP_MONTHLY="true"
     CFG_S3_RETENTION_DAYS="30"
 
     CFG_GD_CLIENT_ID=""
@@ -1786,6 +1943,9 @@ reset_project_profile_defaults() {
     CFG_PROJECT_NAME=""
     CFG_PROJECT_DIR=""
     CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
+    CFG_RETENTION_HOURLY_PERIOD="day"
+    CFG_RETENTION_DAILY_PERIOD="month"
+    CFG_RETENTION_DAILY_HOUR="3"
     CFG_RETENTION_DAYS="30"
     CFG_PROJECT_ENABLED="true"
     CFG_BACKUP_DB_ENABLED="true"
@@ -1877,8 +2037,19 @@ save_global_config() {
 save_project_config() {
     local project_id="$1"
     local project_file
+    local retention_days_legacy
+    local s3_retention_days_legacy
     project_file="$(_project_file_path "$project_id")"
     mkdir -p "$PROJECTS_DIR" || return 1
+
+    retention_days_legacy=$(_period_to_days "${CFG_RETENTION_DAILY_PERIOD:-month}")
+    if [[ "${CFG_STORAGE_KEEP_MONTHLY:-true}" == "true" ]]; then
+        s3_retention_days_legacy="30"
+    elif [[ "${CFG_STORAGE_KEEP_WEEKLY:-true}" == "true" ]]; then
+        s3_retention_days_legacy="7"
+    else
+        s3_retention_days_legacy="1"
+    fi
 
     {
         printf '# Backrest — project profile\n'
@@ -1894,7 +2065,9 @@ save_project_config() {
         printf 'CFG_S3_ACCESS_KEY=%s\n'      "$(printf '%q' "$CFG_S3_ACCESS_KEY")"
         printf 'CFG_S3_SECRET_KEY=%s\n'      "$(printf '%q' "$CFG_S3_SECRET_KEY")"
         printf 'CFG_S3_PREFIX=%s\n'          "$(printf '%q' "$CFG_S3_PREFIX")"
-        printf 'CFG_S3_RETENTION_DAYS=%s\n\n' "$CFG_S3_RETENTION_DAYS"
+        printf 'CFG_STORAGE_KEEP_WEEKLY=%s\n' "$CFG_STORAGE_KEEP_WEEKLY"
+        printf 'CFG_STORAGE_KEEP_MONTHLY=%s\n' "$CFG_STORAGE_KEEP_MONTHLY"
+        printf 'CFG_S3_RETENTION_DAYS=%s\n\n' "$s3_retention_days_legacy"
 
         printf '# Google Drive\n'
         printf 'CFG_GD_CLIENT_ID=%s\n'       "$(printf '%q' "$CFG_GD_CLIENT_ID")"
@@ -1918,7 +2091,10 @@ save_project_config() {
         printf 'CFG_PROJECT_NAME=%s\n'       "$(printf '%q' "$CFG_PROJECT_NAME")"
         printf 'CFG_PROJECT_DIR=%s\n'        "$(printf '%q' "$CFG_PROJECT_DIR")"
         printf 'CFG_BACKUP_DIR=%s\n'         "$(printf '%q' "$CFG_BACKUP_DIR")"
-        printf 'CFG_RETENTION_DAYS=%s\n'     "$CFG_RETENTION_DAYS"
+        printf 'CFG_RETENTION_HOURLY_PERIOD=%s\n' "$CFG_RETENTION_HOURLY_PERIOD"
+        printf 'CFG_RETENTION_DAILY_PERIOD=%s\n' "$CFG_RETENTION_DAILY_PERIOD"
+        printf 'CFG_RETENTION_DAILY_HOUR=%s\n' "$CFG_RETENTION_DAILY_HOUR"
+        printf 'CFG_RETENTION_DAYS=%s\n'     "$retention_days_legacy"
         printf 'CFG_PROJECT_ENABLED=%s\n'    "$CFG_PROJECT_ENABLED"
         printf 'CFG_BACKUP_DB_ENABLED=%s\n'  "$CFG_BACKUP_DB_ENABLED"
         printf 'CFG_BACKUP_DIR_ENABLED=%s\n' "$CFG_BACKUP_DIR_ENABLED"
@@ -1930,6 +2106,7 @@ save_project_config() {
 
 load_project_config() {
     local project_id="$1"
+    local legacy_local_days legacy_s3_days
     [[ "$project_id" == *".."* || "$project_id" == *"/"* ]] && return 1
     local project_file
     project_file="$(_project_file_path "$project_id")"
@@ -1941,6 +2118,33 @@ load_project_config() {
     CFG_BACKUP_DIR_ENABLED="${CFG_BACKUP_DIR_ENABLED:-true}"
     CFG_BACKUP_DIR_MODE="${CFG_BACKUP_DIR_MODE:-full}"
     CFG_BACKUP_DIR_ITEMS="${CFG_BACKUP_DIR_ITEMS:-}"
+
+    legacy_local_days="${CFG_RETENTION_DAYS:-30}"
+    CFG_RETENTION_HOURLY_PERIOD="$(_normalize_retention_period "${CFG_RETENTION_HOURLY_PERIOD:-day}" "day")"
+    CFG_RETENTION_DAILY_PERIOD="$(_normalize_retention_period "${CFG_RETENTION_DAILY_PERIOD:-$(_period_from_legacy_days "$legacy_local_days")}" "$(_period_from_legacy_days "$legacy_local_days")")"
+    CFG_RETENTION_DAILY_HOUR="$(_normalize_daily_hour "${CFG_RETENTION_DAILY_HOUR:-3}" "3")"
+    CFG_RETENTION_DAYS="$(_period_to_days "$CFG_RETENTION_DAILY_PERIOD")"
+
+    legacy_s3_days="${CFG_S3_RETENTION_DAYS:-30}"
+    if [[ -z "${CFG_STORAGE_KEEP_WEEKLY:-}" && -z "${CFG_STORAGE_KEEP_MONTHLY:-}" ]]; then
+        if [[ "$legacy_s3_days" =~ ^[0-9]+$ ]] && (( legacy_s3_days <= 7 )); then
+            CFG_STORAGE_KEEP_WEEKLY="true"
+            CFG_STORAGE_KEEP_MONTHLY="false"
+        else
+            CFG_STORAGE_KEEP_WEEKLY="true"
+            CFG_STORAGE_KEEP_MONTHLY="true"
+        fi
+    fi
+    CFG_STORAGE_KEEP_WEEKLY="$(_normalize_bool "${CFG_STORAGE_KEEP_WEEKLY:-true}" "true")"
+    CFG_STORAGE_KEEP_MONTHLY="$(_normalize_bool "${CFG_STORAGE_KEEP_MONTHLY:-true}" "true")"
+    if [[ "$CFG_STORAGE_KEEP_MONTHLY" == "true" ]]; then
+        CFG_S3_RETENTION_DAYS="30"
+    elif [[ "$CFG_STORAGE_KEEP_WEEKLY" == "true" ]]; then
+        CFG_S3_RETENTION_DAYS="7"
+    else
+        CFG_S3_RETENTION_DAYS="1"
+    fi
+
     CFG_PROJECT_ID="$project_id"
     CFG_ACTIVE_PROJECT="$project_id"
     return 0
@@ -2194,10 +2398,6 @@ setup_s3_config() {
     echo "${L[ul_s3_prefix_info1]}"
     echo "${L[ul_s3_prefix_info2]}"
     read -rp "${L[ul_s3_enter_prefix]}" CFG_S3_PREFIX
-    echo "${L[ul_s3_retain_info]}"
-    printf "${L[ul_s3_enter_retain]}" "${CFG_S3_RETENTION_DAYS}"
-    read -r s3_ret
-    [[ -n "$s3_ret" ]] && CFG_S3_RETENTION_DAYS="$s3_ret"
 
     if [[ -z "$CFG_S3_BUCKET" || -z "$CFG_S3_ACCESS_KEY" || -z "$CFG_S3_SECRET_KEY" ]]; then
         log_warn "${L[ul_s3_fail]}"
@@ -2454,34 +2654,119 @@ s3_upload() {
 }
 
 # ─────────────────────────────────────────────
-# Удалить старые бэкапы из S3 (по retention)
+# Удалить старые бэкапы из S3 (по weekly/monthly слоям)
 # ─────────────────────────────────────────────
 s3_cleanup() {
-    local retention="${CFG_S3_RETENTION_DAYS:-30}"
+    local keep_weekly keep_monthly
+    local daily_hour cron_hour target_minutes
+    local weekly_label monthly_label
     ensure_awscli || return 1
     _s3_env
 
     local prefix="${CFG_S3_PREFIX:+${CFG_S3_PREFIX%/}/}"
     _s3_args
-    local cutoff; cutoff=$(date -d "-${retention} days" +%s 2>/dev/null || date -v-"${retention}"d +%s)
 
-    printf "${L[bk_s3_retention]}\n" "$retention"
+    keep_weekly="$(_normalize_bool "${CFG_STORAGE_KEEP_WEEKLY:-true}" "true")"
+    keep_monthly="$(_normalize_bool "${CFG_STORAGE_KEEP_MONTHLY:-true}" "true")"
+    CFG_STORAGE_KEEP_WEEKLY="$keep_weekly"
+    CFG_STORAGE_KEEP_MONTHLY="$keep_monthly"
 
-    local deleted=0
+    if [[ "$keep_weekly" != "true" && "$keep_monthly" != "true" ]]; then
+        log_info "${L[bk_s3_retention_skip]}"
+        return 0
+    fi
+
+    daily_hour="$(_normalize_daily_hour "${CFG_RETENTION_DAILY_HOUR:-3}" "3")"
+    cron_hour="$(_daily_hour_to_cron_hour "$daily_hour")"
+    target_minutes=$(( cron_hour * 60 ))
+    weekly_label=$(_bool_label "$keep_weekly")
+    monthly_label=$(_bool_label "$keep_monthly")
+    printf "${L[bk_s3_retention]}\n" "$weekly_label" "$monthly_label"
+
+    declare -A week_best_score=()
+    declare -A week_best_epoch=()
+    declare -A week_best_key=()
+    declare -A month_best_score=()
+    declare -A month_best_epoch=()
+    declare -A month_best_key=()
+    declare -A keep_map=()
+    local -a all_keys=()
+    local latest_epoch=0
+    local latest_key=""
+
     while IFS= read -r line; do
-        local file_date file_key
-        file_date=$(echo "$line" | awk '{print $1, $2}')
+        local file_key filename parsed
         file_key=$(echo "$line" | awk '{print $4}')
         [[ -z "$file_key" ]] && continue
+        filename="${file_key##*/}"
 
-        local file_ts
-        file_ts=$(date -d "$file_date" +%s 2>/dev/null || date -j -f "%Y-%m-%d %H:%M:%S" "$file_date" +%s 2>/dev/null)
-        if [[ -n "$file_ts" && "$file_ts" -lt "$cutoff" ]]; then
-            aws s3 rm "s3://${CFG_S3_BUCKET}/${file_key}" "${S3_EXTRA_ARGS[@]}" &>/dev/null && ((deleted++)) || true
+        parsed=$(_parse_backup_name_timestamp "$filename" "$CFG_PROJECT_NAME") || continue
+
+        local file_epoch date_part file_hour file_minute
+        local week_key month_key diff total_minutes
+        IFS=$'\t' read -r file_epoch date_part file_hour file_minute <<< "$parsed"
+        [[ -z "$file_epoch" ]] && continue
+
+        all_keys+=("$file_key")
+        if (( file_epoch > latest_epoch )); then
+            latest_epoch="$file_epoch"
+            latest_key="$file_key"
+        fi
+
+        total_minutes=$(( file_hour * 60 + file_minute ))
+        diff=$(( total_minutes - target_minutes ))
+        (( diff < 0 )) && diff=$(( -diff ))
+
+        if [[ "$keep_weekly" == "true" ]]; then
+            week_key="$(_epoch_format "$file_epoch" "%G-%V")"
+            if [[ -n "$week_key" ]]; then
+                if [[ -z "${week_best_score[$week_key]:-}" ]] \
+                    || (( diff < week_best_score[$week_key] )) \
+                    || { (( diff == week_best_score[$week_key] )) && (( file_epoch > week_best_epoch[$week_key] )); }; then
+                    week_best_score["$week_key"]="$diff"
+                    week_best_epoch["$week_key"]="$file_epoch"
+                    week_best_key["$week_key"]="$file_key"
+                fi
+            fi
+        fi
+
+        if [[ "$keep_monthly" == "true" ]]; then
+            month_key="$(_epoch_format "$file_epoch" "%Y-%m")"
+            if [[ -n "$month_key" ]]; then
+                if [[ -z "${month_best_score[$month_key]:-}" ]] \
+                    || (( diff < month_best_score[$month_key] )) \
+                    || { (( diff == month_best_score[$month_key] )) && (( file_epoch > month_best_epoch[$month_key] )); }; then
+                    month_best_score["$month_key"]="$diff"
+                    month_best_epoch["$month_key"]="$file_epoch"
+                    month_best_key["$month_key"]="$file_key"
+                fi
+            fi
         fi
     done < <(aws s3 ls "s3://${CFG_S3_BUCKET}/${prefix}" "${S3_EXTRA_ARGS[@]}" 2>/dev/null)
 
-    printf "${L[s3_cleaned]}\n" "$deleted"
+    local week_key month_key
+    for week_key in "${!week_best_key[@]}"; do
+        keep_map["${week_best_key[$week_key]}"]="1"
+    done
+    for month_key in "${!month_best_key[@]}"; do
+        keep_map["${month_best_key[$month_key]}"]="1"
+    done
+    [[ -n "$latest_key" ]] && keep_map["$latest_key"]="1"
+
+    local kept_total="${#keep_map[@]}"
+    local kept_weekly_count="${#week_best_key[@]}"
+    local kept_monthly_count="${#month_best_key[@]}"
+    printf "${L[bk_s3_retention_kept]}\n" "$kept_weekly_count" "$kept_monthly_count" "$kept_total"
+
+    local deleted=0
+    local key
+    for key in "${all_keys[@]}"; do
+        if [[ -z "${keep_map[$key]:-}" ]]; then
+            aws s3 rm "s3://${CFG_S3_BUCKET}/${key}" "${S3_EXTRA_ARGS[@]}" &>/dev/null && ((deleted++)) || true
+        fi
+    done
+
+    printf "${L[bk_s3_retention_deleted]}\n" "$deleted"
     log_info "${L[bk_s3_retention_ok]}"
 }
 
@@ -3177,15 +3462,101 @@ _send_via_gd() {
 # Локальная ротация (удалить старые бэкапы)
 # ─────────────────────────────────────────────
 _apply_local_retention() {
-    local retention="${CFG_RETENTION_DAYS:-30}"
-    # Проверить, что значение является положительным целым числом
-    if ! [[ "$retention" =~ ^[1-9][0-9]*$ ]]; then
-        log_warn "CFG_RETENTION_DAYS='$retention' не является положительным целым числом — локальная ротация пропущена"
+    local hourly_period daily_period daily_hour cron_hour
+    local target_minutes now hourly_days daily_days hourly_cutoff daily_cutoff
+    local kept_hourly=0 kept_daily=0 deleted=0
+
+    hourly_period="$(_normalize_retention_period "${CFG_RETENTION_HOURLY_PERIOD:-day}" "day")"
+    daily_period="$(_normalize_retention_period "${CFG_RETENTION_DAILY_PERIOD:-month}" "month")"
+    daily_hour="$(_normalize_daily_hour "${CFG_RETENTION_DAILY_HOUR:-3}" "3")"
+
+    CFG_RETENTION_HOURLY_PERIOD="$hourly_period"
+    CFG_RETENTION_DAILY_PERIOD="$daily_period"
+    CFG_RETENTION_DAILY_HOUR="$daily_hour"
+    CFG_RETENTION_DAYS="$(_period_to_days "$daily_period")"
+
+    cron_hour="$(_daily_hour_to_cron_hour "$daily_hour")"
+    target_minutes=$(( cron_hour * 60 ))
+    hourly_days=$(_period_to_days "$hourly_period")
+    daily_days=$(_period_to_days "$daily_period")
+    now=$(date +%s)
+    hourly_cutoff=$(( now - hourly_days * 86400 ))
+    daily_cutoff=$(( now - daily_days * 86400 ))
+
+    declare -A keep_map=()
+    declare -A daily_best_score=()
+    declare -A daily_best_epoch=()
+    declare -A daily_best_path=()
+    local -a entries=()
+
+    local file filename parsed
+    while IFS= read -r -d '' file; do
+        filename=$(basename "$file")
+        parsed=$(_parse_backup_name_timestamp "$filename" "$CFG_PROJECT_NAME") || continue
+
+        local file_epoch date_part file_hour file_minute
+        IFS=$'\t' read -r file_epoch date_part file_hour file_minute <<< "$parsed"
+        [[ -z "$file_epoch" ]] && continue
+
+        entries+=("${file_epoch}"$'\t'"${file}"$'\t'"${date_part}"$'\t'"${file_hour}"$'\t'"${file_minute}")
+    done < <(find "$CFG_BACKUP_DIR" -maxdepth 1 -type f -name "*.tar.gz" -print0 2>/dev/null)
+
+    if (( ${#entries[@]} == 0 )); then
+        log_info "${L[bk_retention_none]}"
         return 0
     fi
-    printf "${L[bk_retention]}\n" "$retention"
-    find "$CFG_BACKUP_DIR" -maxdepth 1 -name "*.tar.gz" \
-        -mtime "+${retention}" -delete 2>/dev/null || true
+
+    printf "${L[bk_retention]}\n"
+    printf "${L[bk_retention_funnel]}\n" "$(_period_label "$hourly_period")" "$(_period_label "$daily_period")" "$daily_hour"
+
+    local entry
+    for entry in "${entries[@]}"; do
+        local file_epoch file_path date_part file_hour file_minute
+        IFS=$'\t' read -r file_epoch file_path date_part file_hour file_minute <<< "$entry"
+
+        if (( file_epoch >= hourly_cutoff )); then
+            keep_map["$file_path"]="hourly"
+            continue
+        fi
+
+        if (( file_epoch >= daily_cutoff )); then
+            local total_minutes diff
+            total_minutes=$(( file_hour * 60 + file_minute ))
+            diff=$(( total_minutes - target_minutes ))
+            (( diff < 0 )) && diff=$(( -diff ))
+
+            if [[ -z "${daily_best_score[$date_part]:-}" ]] \
+                || (( diff < daily_best_score[$date_part] )) \
+                || { (( diff == daily_best_score[$date_part] )) && (( file_epoch > daily_best_epoch[$date_part] )); }; then
+                daily_best_score["$date_part"]="$diff"
+                daily_best_epoch["$date_part"]="$file_epoch"
+                daily_best_path["$date_part"]="$file_path"
+            fi
+        fi
+    done
+
+    local date_key
+    for date_key in "${!daily_best_path[@]}"; do
+        keep_map["${daily_best_path[$date_key]}"]="daily"
+    done
+
+    for entry in "${entries[@]}"; do
+        local file_epoch file_path date_part file_hour file_minute reason
+        IFS=$'\t' read -r file_epoch file_path date_part file_hour file_minute <<< "$entry"
+        reason="${keep_map[$file_path]:-}"
+        if [[ -n "$reason" ]]; then
+            if [[ "$reason" == "hourly" ]]; then
+                ((kept_hourly++))
+            else
+                ((kept_daily++))
+            fi
+            continue
+        fi
+        rm -f -- "$file_path" 2>/dev/null && ((deleted++)) || true
+    done
+
+    printf "${L[bk_retention_kept]}\n" "$kept_hourly" "$kept_daily"
+    printf "${L[bk_retention_deleted]}\n" "$deleted"
     log_info "${L[bk_retention_ok]}"
 }
 
@@ -3458,9 +3829,11 @@ _cron_enable() {
             ;;
         2)
             echo "${L[cron_enter_utc]}"
-            read -rp "${L[cron_time_space]}" time_input
-            cron_expr=$(_parse_daily_times $time_input)
+            printf "${L[cron_time_space]}" "${CFG_RETENTION_DAILY_HOUR:-3}"
+            read -r time_input
+            cron_expr=$(_parse_daily_hour "$time_input")
             [[ -z "$cron_expr" ]] && { log_warn "${L[cron_err_input]}"; return; }
+            save_config "$CONFIG_FILE" || true
             ;;
         0) return ;;
         *) log_warn "${L[cron_bad_choice]}"; return ;;
@@ -3469,31 +3842,26 @@ _cron_enable() {
     _install_cron "$cron_expr"
 }
 
-# Разобрать одно или несколько времён "HH:MM ..." в cron-выражение
-_parse_daily_times() {
-    local times=("$@")
-    local minutes_list=()
-    local hours_list=()
+# Разобрать час ежедневного запуска в формате 1-24
+_parse_daily_hour() {
+    local raw_hour="${1:-}"
+    local normalized
+    if [[ -z "$raw_hour" ]]; then
+        raw_hour="${CFG_RETENTION_DAILY_HOUR:-3}"
+    fi
 
-    for t in "${times[@]}"; do
-        if ! [[ "$t" =~ ^([0-9]{1,2}):([0-9]{2})$ ]]; then
-            log_warn "${L[cron_bad_fmt]} $t ${L[cron_expect_hhmm]}"
-            return 1
-        fi
-        local h="${BASH_REMATCH[1]}"
-        local m="${BASH_REMATCH[2]}"
-        if (( h > 23 || m > 59 )); then
-            log_warn "${L[cron_bad_value]} $t ${L[cron_hm_range]}"
-            return 1
-        fi
-        hours_list+=("$h")
-        minutes_list+=("$m")
-    done
+    if ! [[ "$raw_hour" =~ ^[0-9]+$ ]]; then
+        log_warn "${L[cron_bad_fmt]} $raw_hour ${L[cron_expect_hhmm]}"
+        return 1
+    fi
+    if (( 10#$raw_hour < 1 || 10#$raw_hour > 24 )); then
+        log_warn "${L[cron_bad_value]} $raw_hour ${L[cron_hm_range]}"
+        return 1
+    fi
 
-    local i
-    for (( i = 0; i < ${#times[@]}; i++ )); do
-        echo "${minutes_list[$i]} ${hours_list[$i]} * * *"
-    done
+    normalized="$((10#$raw_hour))"
+    CFG_RETENTION_DAILY_HOUR="$normalized"
+    echo "0 $(_daily_hour_to_cron_hour "$normalized") * * *"
 }
 
 # Установить cron-задачу
@@ -4562,31 +4930,111 @@ _settings_project() {
 # ─────────────────────────────────────────────
 # Политика хранения
 # ─────────────────────────────────────────────
+_settings_pick_retention_period() {
+    local current="$1"
+    local default_choice="1"
+    RETENTION_PERIOD_PICK_RESULT=""
+    case "$current" in
+        week) default_choice="2" ;;
+        month) default_choice="3" ;;
+    esac
+
+    echo ""
+    echo "${L[st_retention_select_period]}"
+    _menu_select "1 2 3 0" "$default_choice" "${L[period_day]}" "${L[period_week]}" "${L[period_month]}" "${L[back]}"
+    case "$MENU_CHOICE" in
+        1) RETENTION_PERIOD_PICK_RESULT="day" ;;
+        2) RETENTION_PERIOD_PICK_RESULT="week" ;;
+        3) RETENTION_PERIOD_PICK_RESULT="month" ;;
+        *) RETENTION_PERIOD_PICK_RESULT="" ;;
+    esac
+}
+
 _settings_retention() {
+    CFG_RETENTION_HOURLY_PERIOD="$(_normalize_retention_period "${CFG_RETENTION_HOURLY_PERIOD:-day}" "day")"
+    CFG_RETENTION_DAILY_PERIOD="$(_normalize_retention_period "${CFG_RETENTION_DAILY_PERIOD:-month}" "month")"
+    CFG_RETENTION_DAILY_HOUR="$(_normalize_daily_hour "${CFG_RETENTION_DAILY_HOUR:-3}" "3")"
+    CFG_STORAGE_KEEP_WEEKLY="$(_normalize_bool "${CFG_STORAGE_KEEP_WEEKLY:-true}" "true")"
+    CFG_STORAGE_KEEP_MONTHLY="$(_normalize_bool "${CFG_STORAGE_KEEP_MONTHLY:-true}" "true")"
+
     while true; do
         clear
         echo ""
         echo -e "${BOLD}${L[st_retention_title]}${NC}"
         echo "────────────────────────────────"
-        echo "  ${L[st_retention_local]} ${CFG_RETENTION_DAYS} ${L[st_retention_days]}"
-        echo "  ${L[st_retention_s3]}    ${CFG_S3_RETENTION_DAYS} ${L[st_retention_days]}"
+        echo "  ${L[st_retention_funnel]}"
+        echo "    ${L[st_retention_hourly]} $(_period_label "$CFG_RETENTION_HOURLY_PERIOD")"
+        echo "    ${L[st_retention_daily]}  $(_period_label "$CFG_RETENTION_DAILY_PERIOD")"
+        echo "    ${L[st_retention_daily_hour]} ${CFG_RETENTION_DAILY_HOUR}"
         echo ""
-        _menu_select "1 2 0" "1" "${L[st_retention_change_local]}" "${L[st_retention_change_s3]}" "${L[back]}"
+        echo "  ${L[st_retention_storage]}"
+        echo "    ${L[st_retention_weekly]} $(_bool_label "$CFG_STORAGE_KEEP_WEEKLY")"
+        echo "    ${L[st_retention_monthly]} $(_bool_label "$CFG_STORAGE_KEEP_MONTHLY")"
+        echo ""
+        _menu_select "1 2 3 4 5 0" "1" \
+            "${L[st_retention_change_hourly]}" \
+            "${L[st_retention_change_daily]}" \
+            "${L[st_retention_change_hour]}" \
+            "${L[st_retention_toggle_weekly]}" \
+            "${L[st_retention_toggle_monthly]}" \
+            "${L[back]}"
         choice="$MENU_CHOICE"
         case "$choice" in
             1)
-                printf "${L[st_retention_enter_local]}" "${CFG_RETENTION_DAYS}"
-                read -r val; [[ -n "$val" ]] && CFG_RETENTION_DAYS="$val"
-                log_info "${L[st_retention_local_ok]} $CFG_RETENTION_DAYS"
+                _settings_pick_retention_period "$CFG_RETENTION_HOURLY_PERIOD"
+                if [[ -n "$RETENTION_PERIOD_PICK_RESULT" ]]; then
+                    CFG_RETENTION_HOURLY_PERIOD="$RETENTION_PERIOD_PICK_RESULT"
+                    log_info "${L[st_retention_period_ok]}"
+                fi
                 ;;
             2)
-                printf "${L[st_retention_enter_s3]}" "${CFG_S3_RETENTION_DAYS}"
-                read -r val; [[ -n "$val" ]] && CFG_S3_RETENTION_DAYS="$val"
-                log_info "${L[st_retention_s3_ok]} $CFG_S3_RETENTION_DAYS"
+                _settings_pick_retention_period "$CFG_RETENTION_DAILY_PERIOD"
+                if [[ -n "$RETENTION_PERIOD_PICK_RESULT" ]]; then
+                    CFG_RETENTION_DAILY_PERIOD="$RETENTION_PERIOD_PICK_RESULT"
+                    log_info "${L[st_retention_period_ok]}"
+                fi
+                ;;
+            3)
+                printf "${L[st_retention_enter_hour]}" "${CFG_RETENTION_DAILY_HOUR}"
+                read -r val
+                if [[ -z "$val" ]]; then
+                    val="$CFG_RETENTION_DAILY_HOUR"
+                fi
+                if [[ "$val" =~ ^[0-9]+$ ]] && (( 10#$val >= 1 && 10#$val <= 24 )); then
+                    CFG_RETENTION_DAILY_HOUR="$((10#$val))"
+                    log_info "${L[st_retention_hour_ok]} $CFG_RETENTION_DAILY_HOUR"
+                else
+                    log_warn "${L[st_retention_invalid_hour]}"
+                fi
+                ;;
+            4)
+                if [[ "$CFG_STORAGE_KEEP_WEEKLY" == "true" ]]; then
+                    CFG_STORAGE_KEEP_WEEKLY="false"
+                else
+                    CFG_STORAGE_KEEP_WEEKLY="true"
+                fi
+                log_info "${L[st_retention_weekly_ok]} $(_bool_label "$CFG_STORAGE_KEEP_WEEKLY")"
+                ;;
+            5)
+                if [[ "$CFG_STORAGE_KEEP_MONTHLY" == "true" ]]; then
+                    CFG_STORAGE_KEEP_MONTHLY="false"
+                else
+                    CFG_STORAGE_KEEP_MONTHLY="true"
+                fi
+                log_info "${L[st_retention_monthly_ok]} $(_bool_label "$CFG_STORAGE_KEEP_MONTHLY")"
                 ;;
             0) return ;;
             *) log_warn "${L[invalid_input_select]}" ;;
         esac
+
+        CFG_RETENTION_DAYS="$(_period_to_days "$CFG_RETENTION_DAILY_PERIOD")"
+        if [[ "$CFG_STORAGE_KEEP_MONTHLY" == "true" ]]; then
+            CFG_S3_RETENTION_DAYS="30"
+        elif [[ "$CFG_STORAGE_KEEP_WEEKLY" == "true" ]]; then
+            CFG_S3_RETENTION_DAYS="7"
+        else
+            CFG_S3_RETENTION_DAYS="1"
+        fi
     done
 }
 

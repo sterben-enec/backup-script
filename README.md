@@ -54,8 +54,8 @@ backrest restore  # восстановление
 | **Хранилища** | S3-совместимые (AWS, Yandex, Timeweb, MinIO...), Telegram, Google Drive |
 | **Бэкап файлов** | Директория проекта целиком или выборочно (папки / файлы) |
 | **Уведомления** | Telegram — статус каждого бэкапа и восстановления |
-| **Расписание** | Встроенное управление cron (ежечасно / ежедневно / произвольно) |
-| **Ротация** | Автоудаление старых бэкапов локально и в S3 |
+| **Расписание** | Встроенное управление cron (ежечасно / ежедневно, час 1-24) |
+| **Ротация** | Воронка хранения: локально `ежечасные → ежедневные`, в S3 — `еженедельные / ежемесячные` |
 | **Проекты** | Несколько независимых профилей, переключение из меню |
 | **Языки** | Русский, English |
 | **Обновление** | Самообновление из GitHub через меню |
@@ -141,7 +141,9 @@ CFG_TG_PROXY=''
 CFG_PROJECT_NAME=support
 CFG_PROJECT_DIR=/opt/support
 CFG_BACKUP_DIR=/var/lib/universal-backup/backups
-CFG_RETENTION_DAYS=30
+CFG_RETENTION_HOURLY_PERIOD=day   # day | week | month
+CFG_RETENTION_DAILY_PERIOD=month  # day | week | month
+CFG_RETENTION_DAILY_HOUR=3        # 1-24
 CFG_BACKUP_DIR_ENABLED=true
 CFG_BACKUP_DIR_MODE=full       # full | selected
 CFG_BACKUP_DIR_ITEMS=''        # список путей при selected
@@ -156,7 +158,8 @@ CFG_UPLOAD_METHOD=s3           # telegram | s3 | google_drive
 CFG_S3_ENDPOINT=https://s3.timeweb.cloud
 CFG_S3_BUCKET=my-backups
 CFG_S3_PREFIX=support/
-CFG_S3_RETENTION_DAYS=30
+CFG_STORAGE_KEEP_WEEKLY=true
+CFG_STORAGE_KEEP_MONTHLY=true
 ```
 
 Права на файлы конфигурации — `600`.
@@ -198,11 +201,13 @@ CFG_S3_RETENTION_DAYS=30
 
 ## Автоматический бэкап (cron)
 
-Настраивается через меню `Настройка расписания` (требует root).
+Настраивается через меню `Настройка расписания` (требует root):  
+- `Ежечасно` — запуск каждый час.
+- `Ежедневно` — ввод часа в формате `1-24` (по UTC+0).
 
 ```
-0 3 * * *  /usr/local/bin/backrest --project support backup  # universal-backup: support
-0 15 * * * /usr/local/bin/backrest --project support backup  # universal-backup: support
+0 * * * *  /usr/local/bin/backrest --project support backup  # universal-backup: support (ежечасно)
+0 3 * * *  /usr/local/bin/backrest --project support backup  # universal-backup: support (ежедневно, 03:00 UTC)
 ```
 
 ---
