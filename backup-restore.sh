@@ -127,7 +127,16 @@ if [[ -t 1 ]]; then
     YELLOW=$'\033[1;33m'
     BLUE=$'\033[0;34m'
     CYAN=$'\033[0;36m'
+    MAGENTA=$'\033[0;35m'
+    WHITE=$'\033[0;37m'
+    BRIGHT_GREEN=$'\033[1;32m'
+    BRIGHT_CYAN=$'\033[1;36m'
+    BRIGHT_YELLOW=$'\033[1;33m'
+    BRIGHT_RED=$'\033[1;31m'
+    BRIGHT_BLUE=$'\033[1;34m'
     BOLD=$'\033[1m'
+    DIM=$'\033[2m'
+    ITALIC=$'\033[3m'
     NC=$'\033[0m'
 else
     RED=''
@@ -135,7 +144,16 @@ else
     YELLOW=''
     BLUE=''
     CYAN=''
+    MAGENTA=''
+    WHITE=''
+    BRIGHT_GREEN=''
+    BRIGHT_CYAN=''
+    BRIGHT_YELLOW=''
+    BRIGHT_RED=''
+    BRIGHT_BLUE=''
     BOLD=''
+    DIM=''
+    ITALIC=''
     NC=''
 fi
 
@@ -193,15 +211,17 @@ _menu_select() {
     fi
 
     _menu_select_render() {
-        local i marker
+        local i marker label_fmt
         (( rendered )) && printf "\033[%dA" "${#labels[@]}"
         for i in "${!labels[@]}"; do
             if (( i == idx )); then
-                marker="${BOLD}${GREEN}>${NC}"
+                marker="${BOLD}${BRIGHT_CYAN}❯${NC}"
+                label_fmt="${BOLD}${WHITE}"
             else
-                marker=" "
+                marker="${DIM} ${NC}"
+                label_fmt="${DIM}"
             fi
-            printf "\r\033[2K  %s %s\n" "$marker" "${labels[$i]}"
+            printf "\r\033[2K  %s ${label_fmt}%s${NC}\n" "$marker" "${labels[$i]}"
         done
         rendered=1
     }
@@ -333,6 +353,15 @@ _cleanup_all_tmpdirs() {
         cleanup_tmpdir "$d"
     done
     _TMPDIR_STACK=()
+}
+
+# Единый заголовок для подменю: иконка + название + разделитель
+_section_header() {
+    local icon="$1"
+    local title="$2"
+    echo ""
+    echo -e "  ${BOLD}${BRIGHT_CYAN}${icon}  ${title}${NC}"
+    echo -e "  ${DIM}────────────────────────────────────────${NC}"
 }
 
 # Ввод пути с валидацией
@@ -741,9 +770,9 @@ L[cron_daily]="Daily"
 L[cron_enter_utc]="Enter daily hour in UTC+0."
 L[cron_time_space]="Hour (0-23 or 24 for midnight, Enter — %s): "
 L[cron_bad_value]="Invalid time value:"
-L[cron_hm_range]="(hour must be in range 0-24, where 24 = midnight)."
+L[cron_hm_range]="(hour must be in range 1-24, where 24 = midnight)."
 L[cron_bad_fmt]="Invalid time format:"
-L[cron_expect_hhmm]="(expected integer hour 0-24)."
+L[cron_expect_hhmm]="(expected integer hour 1-24)."
 L[cron_bad_choice]="Invalid choice."
 L[cron_err_input]="Schedule not set due to input errors."
 L[cron_setting]="Setting up cron job..."
@@ -980,7 +1009,7 @@ L[st_retention_title]="Backup retention policy"
 L[st_retention_funnel]="Local funnel:"
 L[st_retention_hourly]="Hourly retention:"
 L[st_retention_daily]="Daily retention:"
-L[st_retention_daily_hour]="Daily backup hour (0-24):"
+L[st_retention_daily_hour]="Daily backup hour (1-24):"
 L[st_retention_storage]="Storage layers:"
 L[st_retention_weekly]="Weekly snapshots:"
 L[st_retention_monthly]="Monthly snapshots:"
@@ -990,7 +1019,7 @@ L[st_retention_change_hour]="Change daily hour"
 L[st_retention_toggle_weekly]="Toggle weekly storage"
 L[st_retention_toggle_monthly]="Toggle monthly storage"
 L[st_retention_select_period]="Select retention period:"
-L[st_retention_enter_hour]="Daily hour (0-24, Enter — %s): "
+L[st_retention_enter_hour]="Daily hour (1-24, Enter — %s): "
 L[st_retention_period_ok]="Retention period updated."
 L[st_retention_hour_ok]="Daily hour updated:"
 L[st_retention_weekly_ok]="Weekly storage updated:"
@@ -1395,9 +1424,9 @@ L[cron_daily]="Ежедневно"
 L[cron_enter_utc]="Введите час ежедневного запуска по UTC+0."
 L[cron_time_space]="Час (0-23 или 24 для полуночи, Enter — %s): "
 L[cron_bad_value]="Неверное значение времени:"
-L[cron_hm_range]="(час должен быть в диапазоне 0-24, где 24 = полночь)."
+L[cron_hm_range]="(час должен быть в диапазоне 1-24, где 24 = полночь)."
 L[cron_bad_fmt]="Неверный формат времени:"
-L[cron_expect_hhmm]="(ожидается целое число 0-24)."
+L[cron_expect_hhmm]="(ожидается целое число 1-24)."
 L[cron_bad_choice]="Неверный выбор."
 L[cron_err_input]="Расписание не настроено из-за ошибок ввода."
 L[cron_setting]="Настройка cron-задачи..."
@@ -1634,7 +1663,7 @@ L[st_retention_title]="Политика хранения бэкапов"
 L[st_retention_funnel]="Локальная воронка:"
 L[st_retention_hourly]="Хранение ежечасных:"
 L[st_retention_daily]="Хранение ежедневных:"
-L[st_retention_daily_hour]="Час ежедневного бэкапа (0-24):"
+L[st_retention_daily_hour]="Час ежедневного бэкапа (1-24):"
 L[st_retention_storage]="Уровни хранения в хранилище:"
 L[st_retention_weekly]="Еженедельные снимки:"
 L[st_retention_monthly]="Ежемесячные снимки:"
@@ -1644,7 +1673,7 @@ L[st_retention_change_hour]="Изменить час ежедневного бэ
 L[st_retention_toggle_weekly]="Переключить еженедельное хранение"
 L[st_retention_toggle_monthly]="Переключить ежемесячное хранение"
 L[st_retention_select_period]="Выберите период хранения:"
-L[st_retention_enter_hour]="Час ежедневного бэкапа (0-24, Enter — %s): "
+L[st_retention_enter_hour]="Час ежедневного бэкапа (1-24, Enter — %s): "
 L[st_retention_period_ok]="Период хранения обновлён."
 L[st_retention_hour_ok]="Час ежедневного бэкапа обновлён:"
 L[st_retention_weekly_ok]="Еженедельное хранение обновлено:"
@@ -1877,7 +1906,12 @@ _normalize_daily_hour() {
         echo "$fallback"
         return
     fi
-    if (( 10#$value < 0 || 10#$value > 24 )); then
+    # Обратная совместимость: старое значение "0" трактуем как "24" (полночь).
+    if (( 10#$value == 0 )); then
+        echo "24"
+        return
+    fi
+    if (( 10#$value < 1 || 10#$value > 24 )); then
         echo "$fallback"
         return
     fi
@@ -3827,9 +3861,7 @@ _apply_local_retention() {
 # Главная функция восстановления
 # ─────────────────────────────────────────────
 do_restore() {
-    echo ""
-    echo -e "${BOLD}${L[rs_title]}${NC}"
-    echo "────────────────────────────────"
+    _section_header "♻" "${L[rs_title]}"
 
     # Источник бэкапа
     _menu_select "1 2 0" "1" "${L[rs_source_local]}" "${L[rs_source_s3]}" "${L[back]}"
@@ -4043,9 +4075,7 @@ cron_menu() {
 
     while true; do
         clear
-        echo ""
-        echo -e "${BOLD}${L[cron_title]}${NC}"
-        echo "────────────────────────────────"
+        _section_header "⏰" "${L[cron_title]}"
         _cron_status_line
         echo ""
         _menu_select "1 2 0" "1" "${L[cron_enable]}" "${L[cron_disable]}" "${L[back_to_menu]}"
@@ -4064,10 +4094,26 @@ _cron_status_line() {
     local current
     current=$({ crontab -l 2>/dev/null || true; } | grep -aF "$(_cron_marker)" || true)
     if [[ -n "$current" ]]; then
+        # Синхронизировать час retention с действующим daily-cron, если он задан.
+        local first_line cron_min cron_hour cron_dom cron_mon cron_dow
+        first_line="$(printf '%s\n' "$current" | head -n1)"
+        cron_min="$(echo "$first_line" | awk '{print $1}')"
+        cron_hour="$(echo "$first_line" | awk '{print $2}')"
+        cron_dom="$(echo "$first_line" | awk '{print $3}')"
+        cron_mon="$(echo "$first_line" | awk '{print $4}')"
+        cron_dow="$(echo "$first_line" | awk '{print $5}')"
+        if [[ "$cron_min" =~ ^[0-9]+$ && "$cron_hour" =~ ^[0-9]+$ && "$cron_dom" == "*" && "$cron_mon" == "*" && "$cron_dow" == "*" ]]; then
+            if (( 10#$cron_hour == 0 )); then
+                CFG_RETENTION_DAILY_HOUR="24"
+            elif (( 10#$cron_hour >= 1 && 10#$cron_hour <= 23 )); then
+                CFG_RETENTION_DAILY_HOUR="$((10#$cron_hour))"
+            fi
+        fi
+
         local schedule; schedule=$(echo "$current" | awk '{print $1,$2,$3,$4,$5}')
-        echo "${L[cron_on]} ${schedule} ${L[cron_utc]}"
+        echo -e "  ${BRIGHT_GREEN}●${NC} ${L[cron_on]} ${BRIGHT_YELLOW}${schedule}${NC} ${DIM}${L[cron_utc]}${NC}"
     else
-        echo "${L[cron_off]}"
+        echo -e "  ${DIM}○${NC} ${DIM}${L[cron_off]}${NC}"
     fi
 }
 
@@ -4110,7 +4156,7 @@ _parse_daily_hour() {
         log_warn "${L[cron_bad_fmt]} $raw_hour ${L[cron_expect_hhmm]}"
         return 1
     fi
-    if (( 10#$raw_hour < 0 || 10#$raw_hour > 24 )); then
+    if (( 10#$raw_hour < 1 || 10#$raw_hour > 24 )); then
         log_warn "${L[cron_bad_value]} $raw_hour ${L[cron_hm_range]}"
         return 1
     fi
@@ -4472,9 +4518,9 @@ _project_dir_picker() {
         lines_rendered=0
         echo ""
         ((lines_rendered++))
-        echo -e "${BOLD}${L[pick_title]}${NC}"
+        echo -e "  ${BOLD}${BRIGHT_CYAN}📁  ${L[pick_title]}${NC}"
         ((lines_rendered++))
-        echo "────────────────────────────────────────────────────────────────"
+        echo -e "  ${DIM}────────────────────────────────────────────────────────────────${NC}"
         ((lines_rendered++))
         echo "${L[pick_current]} ${current_rel:-/}"
         ((lines_rendered++))
@@ -4614,7 +4660,7 @@ _settings_project_scope() {
         clear
         echo ""
         echo -e "${BOLD}${L[st_project_change_scope]}${NC}"
-        echo "────────────────────────────────"
+        echo -e "  ${DIM}────────────────────────────────────────${NC}"
         _menu_select "1 2 3 0" "1" \
             "${L[st_project_scope_full]}" \
             "${L[st_project_scope_selected]}" \
@@ -4658,7 +4704,7 @@ settings_menu() {
         clear
         echo ""
         echo -e "${BOLD}${L[st_title]}${NC}"
-        echo "────────────────────────────────"
+        echo -e "  ${DIM}────────────────────────────────────────${NC}"
         _menu_select "1 2 3 4 5 6 7 8 0" "1" \
             "${L[st_tg_settings]}" "${L[st_s3_settings]}" "${L[st_gd_settings]}" "${L[st_db_settings]}" \
             "${L[st_project_settings]}" "${L[st_retention_settings]}" "${L[st_lang]}" "${L[st_auto_update]}" "${L[back_to_menu]}"
@@ -4686,12 +4732,11 @@ _settings_telegram() {
     while true; do
         clear
         echo ""
-        echo -e "${BOLD}${L[st_tg_title]}${NC}"
-        echo "────────────────────────────────"
-        echo "  ${L[st_tg_token]} ${CFG_BOT_TOKEN:+***}"
-        echo "  ${L[st_tg_chatid]} ${CFG_CHAT_ID:-${L[not_set]}}"
-        echo "  ${L[st_tg_thread]} ${CFG_THREAD_ID:-${L[not_set]}}"
-        echo "  ${L[st_tg_proxy]} ${CFG_TG_PROXY:-${L[not_set]}}"
+        _section_header "✉" "${L[st_tg_title]}"
+        echo -e "  ${DIM}${L[st_tg_token]}${NC}  ${BRIGHT_YELLOW}${CFG_BOT_TOKEN:+***}${NC}${DIM}${CFG_BOT_TOKEN:-${L[not_set]}}${NC}"
+        echo -e "  ${DIM}${L[st_tg_chatid]}${NC} ${BRIGHT_YELLOW}${CFG_CHAT_ID:-${L[not_set]}}${NC}"
+        echo -e "  ${DIM}${L[st_tg_thread]}${NC} ${CFG_THREAD_ID:-${DIM}${L[not_set]}${NC}}"
+        echo -e "  ${DIM}${L[st_tg_proxy]}${NC}  ${CFG_TG_PROXY:-${DIM}${L[not_set]}${NC}}"
         echo ""
         _menu_select "1 2 3 4 0" "1" \
             "${L[st_tg_change_token]}" "${L[st_tg_change_id]}" "${L[st_tg_change_thread]}" "${L[st_tg_change_proxy]}" "${L[back]}"
@@ -4730,15 +4775,13 @@ _settings_telegram() {
 _settings_s3() {
     while true; do
         clear
-        echo ""
-        echo -e "${BOLD}${L[st_s3_title]}${NC}"
-        echo "────────────────────────────────"
-        echo "  ${L[st_s3_endpoint]} ${CFG_S3_ENDPOINT:-${L[not_set]}}"
-        echo "  ${L[st_s3_region]}   ${CFG_S3_REGION:-${L[not_set]}}"
-        echo "  ${L[st_s3_bucket]}   ${CFG_S3_BUCKET:-${L[not_set]}}"
-        echo "  ${L[st_s3_access]}   ${CFG_S3_ACCESS_KEY:0:8}..."
-        echo "  ${L[st_s3_secret]}   ***"
-        echo "  ${L[st_s3_prefix]}   ${CFG_S3_PREFIX:-${L[not_set]}}"
+        _section_header "☁" "${L[st_s3_title]}"
+        echo -e "  ${DIM}${L[st_s3_endpoint]}${NC} ${BRIGHT_YELLOW}${CFG_S3_ENDPOINT:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${DIM}${L[st_s3_region]}${NC}   ${BRIGHT_YELLOW}${CFG_S3_REGION:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${DIM}${L[st_s3_bucket]}${NC}   ${BRIGHT_YELLOW}${CFG_S3_BUCKET:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${DIM}${L[st_s3_access]}${NC}   ${CFG_S3_ACCESS_KEY:+${CYAN}${CFG_S3_ACCESS_KEY:0:8}…${NC}}${CFG_S3_ACCESS_KEY:-${DIM}${L[not_set]}${NC}}"
+        echo -e "  ${DIM}${L[st_s3_secret]}${NC}   ${CFG_S3_SECRET_KEY:+${DIM}***${NC}}${CFG_S3_SECRET_KEY:-${DIM}${L[not_set]}${NC}}"
+        echo -e "  ${DIM}${L[st_s3_prefix]}${NC}   ${CFG_S3_PREFIX:-${DIM}${L[not_set]}}${NC}"
         echo ""
         _menu_select "1 2 3 4 5 6 7 0" "1" \
             "${L[st_s3_change_endpoint]}" "${L[st_s3_change_region]}" "${L[st_s3_change_bucket]}" "${L[st_s3_change_access]}" \
@@ -4766,13 +4809,11 @@ _settings_s3() {
 _settings_gd() {
     while true; do
         clear
-        echo ""
-        echo -e "${BOLD}${L[st_gd_title]}${NC}"
-        echo "────────────────────────────────"
-        echo "  ${L[st_gd_client_id]} ${CFG_GD_CLIENT_ID:0:10}..."
-        echo "  ${L[st_gd_secret]}    ***"
-        echo "  ${L[st_gd_refresh]}   ${CFG_GD_REFRESH_TOKEN:+set}"
-        echo "  ${L[st_gd_folder]}    ${CFG_GD_FOLDER_ID:-${L[not_set]}}"
+        _section_header "🔑" "${L[st_gd_title]}"
+        echo -e "  ${DIM}${L[st_gd_client_id]}${NC} ${CFG_GD_CLIENT_ID:+${CYAN}${CFG_GD_CLIENT_ID:0:10}…${NC}}${CFG_GD_CLIENT_ID:-${DIM}${L[not_set]}${NC}}"
+        echo -e "  ${DIM}${L[st_gd_secret]}${NC}    ${CFG_GD_CLIENT_SECRET:+${DIM}***${NC}}${CFG_GD_CLIENT_SECRET:-${DIM}${L[not_set]}${NC}}"
+        echo -e "  ${DIM}${L[st_gd_refresh]}${NC}   ${CFG_GD_REFRESH_TOKEN:+${BRIGHT_GREEN}✔ set${NC}}${CFG_GD_REFRESH_TOKEN:-${DIM}${L[not_set]}${NC}}"
+        echo -e "  ${DIM}${L[st_gd_folder]}${NC}    ${CFG_GD_FOLDER_ID:-${DIM}${L[not_set]}}${NC}"
         echo ""
         _menu_select "1 2 3 4 0" "1" \
             "${L[st_gd_change_id]}" "${L[st_gd_change_secret]}" "${L[st_gd_change_refresh]}" "${L[st_gd_change_folder]}" "${L[back]}"
@@ -4796,24 +4837,22 @@ _settings_gd() {
 _settings_db() {
     while true; do
         clear
-        echo ""
-        echo -e "${BOLD}${L[st_db_title]}${NC}"
-        echo "────────────────────────────────"
+        _section_header "🗃" "${L[st_db_title]}"
         local type_label
         case "$CFG_DB_TYPE" in
             docker)   type_label="${L[st_db_type_docker]}" ;;
             external) type_label="${L[st_db_type_ext]}" ;;
             *)        type_label="${L[st_db_type_none]}" ;;
         esac
-        echo "  ${L[st_db_type]}    $type_label"
-        echo "  ${L[st_db_engine]}  ${CFG_DB_ENGINE:-${L[not_set]}}"
+        echo -e "  ${DIM}${L[st_db_type]}${NC}    ${BRIGHT_YELLOW}${type_label}${NC}"
+        echo -e "  ${DIM}${L[st_db_engine]}${NC}  ${BRIGHT_YELLOW}${CFG_DB_ENGINE:-${DIM}${L[not_set]}}${NC}"
         if [[ "$CFG_DB_TYPE" == "docker" ]]; then
-            echo "  ${L[st_db_container]} ${CFG_DB_CONTAINER:-${L[not_set]}}"
+            echo -e "  ${DIM}${L[st_db_container]}${NC} ${CYAN}${CFG_DB_CONTAINER:-${DIM}${L[not_set]}}${NC}"
         elif [[ "$CFG_DB_TYPE" == "external" ]]; then
-            echo "  ${L[st_db_host_label]} ${CFG_DB_HOST:-${L[not_set]}}:${CFG_DB_PORT}"
+            echo -e "  ${DIM}${L[st_db_host_label]}${NC} ${CYAN}${CFG_DB_HOST:-${DIM}${L[not_set]}}${NC}${DIM}:${NC}${CFG_DB_PORT}"
         fi
-        echo "  ${L[st_db_user_label]}  ${CFG_DB_USER:-${L[not_set]}}"
-        echo "  ${L[st_db_name_label]}  ${CFG_DB_NAME:-${L[not_set]}}"
+        echo -e "  ${DIM}${L[st_db_user_label]}${NC}  ${CFG_DB_USER:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${DIM}${L[st_db_name_label]}${NC}  ${BRIGHT_CYAN}${CFG_DB_NAME:-${DIM}${L[not_set]}}${NC}"
         echo ""
         _menu_select "1 2 3 4 5 6 7 8 0" "1" \
             "${L[st_db_change_type]}" "${L[st_db_change_engine]}" "${L[st_db_change_container]}" "${L[st_db_change_user]}" \
@@ -5052,7 +5091,7 @@ _settings_project_components() {
         clear
         echo ""
         echo -e "${BOLD}${L[st_project_components_title]}${NC}"
-        echo "────────────────────────────────"
+        echo -e "  ${DIM}────────────────────────────────────────${NC}"
         echo "  ${L[st_project_components_help]}"
         echo ""
 
@@ -5144,18 +5183,16 @@ _settings_project_delete_current() {
 _settings_project() {
     while true; do
         clear
-        echo ""
-        echo -e "${BOLD}${L[st_project_title]}${NC}"
-        echo "────────────────────────────────"
-        echo "  ID: ${CFG_ACTIVE_PROJECT:-${L[not_set]}}"
+        _section_header "📦" "${L[st_project_title]}"
+        echo -e "  ${DIM}ID:${NC} ${CYAN}${CFG_ACTIVE_PROJECT:-${L[not_set]}}${NC}"
         if [[ "${CFG_PROJECT_ENABLED:-true}" == "true" ]]; then
-            echo "  ${L[st_project_backup_status]} ${L[st_project_backup_on]}"
+            echo -e "  ${DIM}${L[st_project_backup_status]}${NC} ${BRIGHT_GREEN}● ${L[st_project_backup_on]}${NC}"
         else
-            echo "  ${L[st_project_backup_status]} ${L[st_project_backup_off]}"
+            echo -e "  ${DIM}${L[st_project_backup_status]}${NC} ${DIM}○ ${L[st_project_backup_off]}${NC}"
         fi
-        echo "  ${L[st_project_name]} ${CFG_PROJECT_NAME:-${L[not_set]}}"
-        echo "  ${L[st_project_dir]}  ${CFG_PROJECT_DIR:-${L[not_set]}}"
-        echo "  ${L[st_project_dir_items]} $(_project_selected_items_preview)"
+        echo -e "  ${DIM}${L[st_project_name]}${NC} ${BRIGHT_YELLOW}${CFG_PROJECT_NAME:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${DIM}${L[st_project_dir]}${NC}  ${CFG_PROJECT_DIR:-${DIM}${L[not_set]}}${NC}"
+        echo -e "  ${DIM}${L[st_project_dir_items]}${NC} $(_project_selected_items_preview)"
         echo ""
         _menu_select "1 2 3 4 5 6 0" "1" \
             "${L[st_project_toggle_backup]}" \
@@ -5235,9 +5272,7 @@ _settings_retention() {
 
     while true; do
         clear
-        echo ""
-        echo -e "${BOLD}${L[st_retention_title]}${NC}"
-        echo "────────────────────────────────"
+        _section_header "🔄" "${L[st_retention_title]}"
         echo "  ${L[st_retention_funnel]}"
         echo "    ${L[st_retention_hourly]} $(_period_label "$CFG_RETENTION_HOURLY_PERIOD")"
         echo "    ${L[st_retention_daily]}  $(_period_label "$CFG_RETENTION_DAILY_PERIOD")"
@@ -5555,52 +5590,58 @@ _render_projects_overview() {
         [[ -n "$id" ]] && ids+=("$id")
     done < <(list_project_ids)
 
-    echo -e "  ${L[menu_projects_title]}"
+    echo -e "  ${BOLD}${WHITE}${L[menu_projects_title]}${NC}"
     if (( ${#ids[@]} == 0 )); then
-        echo "  ${L[menu_projects_empty]}"
+        echo -e "  ${DIM}${L[menu_projects_empty]}${NC}"
         echo ""
         return
     fi
 
-    local table_line="+----------------+--------------------------+------------+--------------+------------------+"
-    echo "  ${table_line}"
-    printf "  | %-14s | %-24s | %-10s | %-12s | %-16s |\n" \
+    local sep="${DIM}  ┼──────────────────┼──────────────────────────┼────────────┼────────────┼────────────┤${NC}"
+    local top="${DIM}  ┌──────────────────┬──────────────────────────┬────────────┬────────────┬────────────┐${NC}"
+    local bot="${DIM}  └──────────────────┴──────────────────────────┴────────────┴────────────┴────────────┘${NC}"
+
+    echo -e "$top"
+    printf "  ${DIM}│${NC} ${BOLD}%-16s${NC} ${DIM}│${NC} ${BOLD}%-24s${NC} ${DIM}│${NC} ${BOLD}%-10s${NC} ${DIM}│${NC} ${BOLD}%-10s${NC} ${DIM}│${NC} ${BOLD}%-10s${NC} ${DIM}│${NC}\n" \
         "${L[menu_projects_col_id]}" \
         "${L[menu_projects_col_name]}" \
         "${L[menu_projects_col_db]}" \
         "${L[menu_projects_col_upload]}" \
         "${L[menu_projects_col_status]}"
-    echo "  ${table_line}"
+    echo -e "$sep"
 
     for id in "${ids[@]}"; do
         local name db_type upload_methods status_label db_label upload_label project_enabled
+        local status_color db_color
         name="$(project_display_name "$id")"
         db_type="$(_project_cfg_value "$id" "CFG_DB_TYPE" "none")"
         upload_methods="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "telegram")"
         project_enabled="$(_project_cfg_value "$id" "CFG_PROJECT_ENABLED" "true")"
 
         if [[ "$project_enabled" == "true" ]]; then
-            status_label="${L[menu_projects_status_active]}"
+            status_label="● ${L[menu_projects_status_active]}"
+            status_color="${BRIGHT_GREEN}"
         else
-            status_label="${L[menu_projects_status_ready]}"
+            status_label="○ ${L[menu_projects_status_ready]}"
+            status_color="${DIM}${YELLOW}"
         fi
 
         case "$db_type" in
-            docker) db_label="Docker" ;;
-            external) db_label="External" ;;
-            none) db_label="None" ;;
-            *) db_label="$db_type" ;;
+            docker)   db_label="🐳 Docker";   db_color="${CYAN}" ;;
+            external) db_label="⚡ External";  db_color="${YELLOW}" ;;
+            none)     db_label="— None";       db_color="${DIM}" ;;
+            *)        db_label="$db_type";     db_color="${NC}" ;;
         esac
         upload_label="$(_upload_methods_text "$upload_methods")"
 
-        printf "  | %-14s | %-24s | %-10s | %-12s | %-16s |\n" \
-            "$(_trim_cell "$id" 14)" \
+        printf "  ${DIM}│${NC} %-16s ${DIM}│${NC} ${BRIGHT_CYAN}%-24s${NC} ${DIM}│${NC} ${db_color}%-10s${NC} ${DIM}│${NC} ${YELLOW}%-10s${NC} ${DIM}│${NC} ${status_color}%-10s${NC} ${DIM}│${NC}\n" \
+            "$(_trim_cell "$id" 16)" \
             "$(_trim_cell "$name" 24)" \
             "$(_trim_cell "$db_label" 10)" \
-            "$(_trim_cell "$upload_label" 12)" \
-            "$(_trim_cell "$status_label" 16)"
+            "$(_trim_cell "$upload_label" 10)" \
+            "$(_trim_cell "$status_label" 10)"
     done
-    echo "  ${table_line}"
+    echo -e "$bot"
     echo ""
 }
 
@@ -5636,7 +5677,7 @@ _render_upload_methods_overview() {
         methods_text="${methods[*]}"
     fi
 
-    echo -e "  ${L[menu_upload_configured]} ${YELLOW}${methods_text}${NC}"
+    echo -e "  ${DIM}${L[menu_upload_configured]}${NC} ${BRIGHT_YELLOW}${methods_text}${NC}"
     echo ""
 }
 
@@ -5646,27 +5687,37 @@ _render_main_header() {
     clean_author="$(_sanitize_text "$SCRIPT_AUTHOR")"
 
     echo ""
-    echo -e "  ${BOLD}${CYAN}${L[menu_title]}${NC}"
-    echo -e "  ${L[menu_version]} ${SCRIPT_VERSION}  |  ${L[menu_author]} ${clean_author}"
-    echo "  ──────────────────────────────────────────────────────────────"
+    echo -e "  ${BOLD}${BRIGHT_CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "  ${BOLD}${BRIGHT_CYAN}║${NC}  ${BOLD}${WHITE}🗄  ${L[menu_title]}${NC}${BOLD}${BRIGHT_CYAN}${NC}"
+    echo -e "  ${BOLD}${BRIGHT_CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo -e "  ${DIM}${L[menu_version]} ${BRIGHT_YELLOW}${SCRIPT_VERSION}${NC}${DIM}  ·  ${L[menu_author]} ${clean_author}${NC}"
     echo ""
 }
 
 _render_tabs_panel() {
     local current_tab="$1"
     local tab_ops tab_cfg tab_srv
-    tab_ops="${L[menu_tab_ops]}"
-    tab_cfg="${L[menu_tab_config]}"
-    tab_srv="${L[menu_tab_service]}"
 
     case "$current_tab" in
-        ops) tab_ops="${BOLD}${GREEN}[${L[menu_tab_ops]}]${NC}" ;;
-        config) tab_cfg="${BOLD}${GREEN}[${L[menu_tab_config]}]${NC}" ;;
-        service) tab_srv="${BOLD}${GREEN}[${L[menu_tab_service]}]${NC}" ;;
+        ops)
+            tab_ops="${BOLD}${BRIGHT_CYAN}▶ ${L[menu_tab_ops]}${NC}"
+            tab_cfg="${DIM}  ${L[menu_tab_config]}${NC}"
+            tab_srv="${DIM}  ${L[menu_tab_service]}${NC}"
+            ;;
+        config)
+            tab_ops="${DIM}  ${L[menu_tab_ops]}${NC}"
+            tab_cfg="${BOLD}${BRIGHT_CYAN}▶ ${L[menu_tab_config]}${NC}"
+            tab_srv="${DIM}  ${L[menu_tab_service]}${NC}"
+            ;;
+        service)
+            tab_ops="${DIM}  ${L[menu_tab_ops]}${NC}"
+            tab_cfg="${DIM}  ${L[menu_tab_config]}${NC}"
+            tab_srv="${BOLD}${BRIGHT_CYAN}▶ ${L[menu_tab_service]}${NC}"
+            ;;
     esac
 
-    echo -e "  ${L[menu_tabs_label]} ${tab_ops}  ${tab_cfg}  ${tab_srv}"
-    echo -e "  ${L[menu_tip_tabs]}"
+    echo -e "  ${tab_ops}   ${tab_cfg}   ${tab_srv}"
+    echo -e "  ${DIM}${L[menu_tip_tabs]}${NC}"
     echo ""
 }
 
@@ -5691,26 +5742,25 @@ _menu_choose_upload_method() {
     while true; do
         clear
         echo ""
-        echo "${L[ul_title]}"
-        echo "────────────────────────────────"
-        echo "  ${L[ul_current]} $(_upload_methods_text "$CFG_UPLOAD_METHOD")"
-        echo "  ${L[ul_multi_help]}"
+        _section_header "📤" "${L[ul_title]}"
+        echo -e "  ${DIM}${L[ul_current]}${NC} ${BRIGHT_YELLOW}$(_upload_methods_text "$CFG_UPLOAD_METHOD")${NC}"
+        echo -e "  ${DIM}${L[ul_multi_help]}${NC}"
         echo ""
 
         local tg_line s3_line gd_line apply_line back_line
-        [[ "$use_tg" == "true" ]] && tg_line="[x] ${L[ul_name_tg]}" || tg_line="[ ] ${L[ul_name_tg]}"
-        [[ "$use_s3" == "true" ]] && s3_line="[x] ${L[ul_name_s3]}" || s3_line="[ ] ${L[ul_name_s3]}"
-        [[ "$use_gd" == "true" ]] && gd_line="[x] ${L[ul_name_gd]}" || gd_line="[ ] ${L[ul_name_gd]}"
-        apply_line="${L[ul_multi_apply]}"
-        back_line="${L[back]}"
+        [[ "$use_tg" == "true" ]] && tg_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_tg]}" || tg_line="${DIM}[ ]${NC} ${L[ul_name_tg]}"
+        [[ "$use_s3" == "true" ]] && s3_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_s3]}" || s3_line="${DIM}[ ]${NC} ${L[ul_name_s3]}"
+        [[ "$use_gd" == "true" ]] && gd_line="${BRIGHT_GREEN}[✔]${NC} ${L[ul_name_gd]}" || gd_line="${DIM}[ ]${NC} ${L[ul_name_gd]}"
+        apply_line="${BRIGHT_CYAN}${L[ul_multi_apply]}${NC}"
+        back_line="${DIM}${L[back]}${NC}"
 
         local -a lines=("$tg_line" "$s3_line" "$gd_line" "$apply_line" "$back_line")
         local i
         for i in "${!lines[@]}"; do
             if (( i == cursor )); then
-                echo -e "  ${BOLD}${GREEN}>${NC} ${lines[$i]}"
+                echo -e "  ${BOLD}${BRIGHT_CYAN}❯${NC} ${lines[$i]}"
             else
-                echo "    ${lines[$i]}"
+                echo -e "    ${lines[$i]}"
             fi
         done
 
@@ -5934,15 +5984,17 @@ _read_main_menu_choice() {
 
     local rendered=0
     _render_main_choice_list() {
-        local j marker
+        local j marker label_fmt
         (( rendered )) && printf "\033[%dA" "${#labels[@]}"
         for j in "${!labels[@]}"; do
             if (( j == idx )); then
-                marker="${BOLD}${GREEN}>${NC}"
+                marker="${BOLD}${BRIGHT_CYAN}❯${NC}"
+                label_fmt="${BOLD}${WHITE}"
             else
-                marker=" "
+                marker="${DIM} ${NC}"
+                label_fmt="${DIM}"
             fi
-            printf "\r\033[2K  %s %s\n" "$marker" "${labels[$j]}"
+            printf "\r\033[2K  %s ${label_fmt}%s${NC}\n" "$marker" "${labels[$j]}"
         done
         rendered=1
     }
