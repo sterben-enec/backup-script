@@ -973,6 +973,9 @@ L[menu_db_docker]="DB: Docker"
 L[menu_db_ext]="DB: External"
 L[menu_db_none]="DB: not configured"
 L[menu_create_backup]="Create backup manually"
+L[menu_create_backup_one]="Backup one project"
+L[menu_create_backup_all_active]="Backup all active projects"
+L[menu_create_backup_mode]="Manual backup mode:"
 L[menu_restore]="Restore from backup"
 L[menu_auto_send]="Backup schedule"
 L[menu_upload_method]="Upload methods"
@@ -1001,6 +1004,7 @@ L[menu_tab_check_update]="Check for updates"
 L[menu_tab_remove]="Remove script and data"
 L[menu_projects_title]="Connected projects:"
 L[menu_projects_empty]="No projects found."
+L[menu_projects_no_active]="No active projects found."
 L[menu_projects_col_id]="ID"
 L[menu_projects_col_name]="Name"
 L[menu_projects_col_db]="DB"
@@ -1598,6 +1602,9 @@ L[menu_db_docker]="БД: Docker"
 L[menu_db_ext]="БД: Внешняя"
 L[menu_db_none]="БД: не настроена"
 L[menu_create_backup]="Создание бэкапа вручную"
+L[menu_create_backup_one]="Бэкап одного проекта"
+L[menu_create_backup_all_active]="Бэкап всех активных проектов"
+L[menu_create_backup_mode]="Режим ручного бэкапа:"
 L[menu_restore]="Восстановление из бэкапа"
 L[menu_auto_send]="Расписание бэкапов"
 L[menu_upload_method]="Способы отправки"
@@ -1626,6 +1633,7 @@ L[menu_tab_check_update]="Проверить обновления"
 L[menu_tab_remove]="Удалить скрипт и данные"
 L[menu_projects_title]="Подключённые проекты:"
 L[menu_projects_empty]="Проекты не найдены."
+L[menu_projects_no_active]="Активные проекты не найдены."
 L[menu_projects_col_id]="ID"
 L[menu_projects_col_name]="Название"
 L[menu_projects_col_db]="БД"
@@ -5018,6 +5026,56 @@ _manual_backup_with_project_select() {
     press_enter_back
 }
 
+_manual_backup_all_active() {
+    local -a ids=()
+    local id
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        [[ "$(_project_cfg_value "$id" "CFG_PROJECT_ENABLED" "true")" != "true" ]] && continue
+        ids+=("$id")
+    done < <(list_project_ids)
+
+    if (( ${#ids[@]} == 0 )); then
+        log_warn "${L[menu_projects_no_active]}"
+        press_enter_back
+        return 0
+    fi
+
+    local ok_count=0 fail_count=0
+    for id in "${ids[@]}"; do
+        log_step "${L[bk_project]} $(project_display_name "$id") (${id})"
+        if _run_with_project_context "$id" do_backup; then
+            ((ok_count++))
+        else
+            ((fail_count++))
+        fi
+        echo ""
+    done
+
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        log_info "Завершено: ${ok_count}, с ошибками: ${fail_count}"
+    else
+        log_info "Done: ${ok_count}, failed: ${fail_count}"
+    fi
+    press_enter_back
+}
+
+_manual_backup_menu() {
+    echo ""
+    echo "${L[menu_create_backup_mode]}"
+    _menu_select "1 2 0" "1" \
+        "${L[menu_create_backup_one]}" \
+        "${L[menu_create_backup_all_active]}" \
+        "${L[back]}"
+    local backup_choice="$MENU_CHOICE"
+    case "$backup_choice" in
+        1) _manual_backup_with_project_select ;;
+        2) _manual_backup_all_active ;;
+        0) return ;;
+        *) log_warn "${L[invalid_input_select]}" ;;
+    esac
+}
+
 _manual_restore_with_project_select() {
     _select_connected_project "${L[menu_projects_title]}" || return 0
     _run_with_project_context "$SELECTED_PROJECT" do_restore
@@ -5176,7 +5234,7 @@ _main_menu() {
         case "$current_tab" in
             ops)
                 case "$choice" in
-                    1) _manual_backup_with_project_select ;;
+                    1) _manual_backup_menu ;;
                     2) _manual_restore_with_project_select ;;
                     *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
                 esac
