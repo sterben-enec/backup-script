@@ -875,9 +875,10 @@ L[st_project_scope_selected]="Selected files/folders"
 L[st_project_scope_pick]="Pick files/folders"
 L[st_project_scope_none]="No items selected"
 L[pick_title]="Directory content selection"
-L[pick_help]="Arrows: move | Enter: open/confirm | Space: select | Backspace/Left: up | c: confirm"
+L[pick_help]="Arrows: move | PgUp/PgDn: page | Enter: open/confirm | Space: select | Backspace/Left: up | c: confirm"
 L[pick_current]="Current:"
 L[pick_selected]="Selected:"
+L[pick_page]="Page:"
 L[pick_confirm]="Confirm selected items?"
 L[pick_done]="Selection saved."
 L[pick_cancel]="Selection cancelled."
@@ -1485,9 +1486,10 @@ L[st_project_scope_selected]="Выбранные файлы/папки"
 L[st_project_scope_pick]="Выбрать файлы/папки"
 L[st_project_scope_none]="Ничего не выбрано"
 L[pick_title]="Выбор содержимого директории"
-L[pick_help]="Стрелки: перемещение | Enter: открыть/подтвердить | Пробел: выбрать | Backspace/Влево: вверх | c: подтвердить"
+L[pick_help]="Стрелки: перемещение | PgUp/PgDn: страница | Enter: открыть/подтвердить | Пробел: выбрать | Backspace/Влево: вверх | c: подтвердить"
 L[pick_current]="Текущая:"
 L[pick_selected]="Выбрано:"
+L[pick_page]="Страница:"
 L[pick_confirm]="Подтвердить выбранные элементы?"
 L[pick_done]="Выбор сохранён."
 L[pick_cancel]="Выбор отменён."
@@ -3680,8 +3682,12 @@ _project_dir_picker() {
     local key seq cursor=0 i
     local -A selected=()
     local -a dirs files entries labels keys
+    local page_size="${BACKREST_PICKER_PAGE_SIZE:-14}"
+    local rendered=0 lines_rendered=0
 
     [[ -d "$root" ]] || return 1
+    [[ "$page_size" =~ ^[0-9]+$ ]] || page_size=14
+    (( page_size < 6 )) && page_size=6
 
     # preload current selection
     while IFS= read -r i; do
@@ -3741,22 +3747,55 @@ _project_dir_picker() {
         (( cursor >= ${#labels[@]} )) && cursor=$(( ${#labels[@]} - 1 ))
         (( cursor < 0 )) && cursor=0
 
-        clear
-        echo ""
-        echo -e "${BOLD}${L[pick_title]}${NC}"
-        echo "────────────────────────────────────────────────────────────────"
-        echo "${L[pick_current]} ${current_rel:-/}"
-        echo "${L[pick_selected]} ${#selected[@]}"
-        echo "${L[pick_help]}"
-        echo ""
+        local total_items page_num total_pages start_idx end_idx row idx
+        total_items="${#labels[@]}"
+        page_num=$(( cursor / page_size ))
+        total_pages=$(( (total_items + page_size - 1) / page_size ))
+        (( total_pages < 1 )) && total_pages=1
+        start_idx=$(( page_num * page_size ))
+        end_idx=$(( start_idx + page_size ))
+        (( end_idx > total_items )) && end_idx="$total_items"
 
-        for i in "${!labels[@]}"; do
-            if (( i == cursor )); then
-                echo -e "  ${BOLD}${GREEN}>${NC} ${labels[$i]}"
+        if (( rendered )); then
+            printf "\033[%dA" "$lines_rendered"
+            for ((i=0; i<lines_rendered; i++)); do
+                printf "\r\033[2K\n"
+            done
+            printf "\033[%dA" "$lines_rendered"
+        fi
+
+        lines_rendered=0
+        echo ""
+        ((lines_rendered++))
+        echo -e "${BOLD}${L[pick_title]}${NC}"
+        ((lines_rendered++))
+        echo "────────────────────────────────────────────────────────────────"
+        ((lines_rendered++))
+        echo "${L[pick_current]} ${current_rel:-/}"
+        ((lines_rendered++))
+        echo "${L[pick_selected]} ${#selected[@]}"
+        ((lines_rendered++))
+        echo "${L[pick_page]} $((page_num + 1))/${total_pages}"
+        ((lines_rendered++))
+        echo "${L[pick_help]}"
+        ((lines_rendered++))
+        echo ""
+        ((lines_rendered++))
+
+        for ((row=0; row<page_size; row++)); do
+            idx=$(( start_idx + row ))
+            if (( idx < end_idx )); then
+                if (( idx == cursor )); then
+                    echo -e "  ${BOLD}${GREEN}>${NC} ${labels[$idx]}"
+                else
+                    echo "    ${labels[$idx]}"
+                fi
             else
-                echo "    ${labels[$i]}"
+                echo ""
             fi
+            ((lines_rendered++))
         done
+        rendered=1
 
         IFS= read -rsn1 key || return 1
 
@@ -3769,6 +3808,8 @@ _project_dir_picker() {
             case "$seq" in
                 "[A"|"OA") cursor=$(( (cursor - 1 + ${#labels[@]}) % ${#labels[@]} )) ;;
                 "[B"|"OB") cursor=$(( (cursor + 1) % ${#labels[@]} )) ;;
+                "[5~") cursor=$(( cursor - page_size )); (( cursor < 0 )) && cursor=0 ;;
+                "[6~") cursor=$(( cursor + page_size )); (( cursor >= ${#labels[@]} )) && cursor=$(( ${#labels[@]} - 1 )) ;;
                 "[D"|"OD")
                     if [[ -n "$current_rel" ]]; then
                         if [[ "$current_rel" == */* ]]; then
@@ -4773,6 +4814,7 @@ _menu_choose_upload_method() {
 }
 
 _select_connected_project() {
+    SELECTED_PROJECT=""
     local title="${1:-}"
     local ids=()
     local id
@@ -4804,7 +4846,7 @@ _select_connected_project() {
         return 1
     fi
 
-    echo "${ids[$((choice-1))]}"
+    SELECTED_PROJECT="${ids[$((choice-1))]}"
     return 0
 }
 
@@ -4825,16 +4867,14 @@ _run_with_project_context() {
 }
 
 _manual_backup_with_project_select() {
-    local target
-    target="$(_select_connected_project "${L[menu_projects_title]}")" || return 0
-    _run_with_project_context "$target" do_backup
+    _select_connected_project "${L[menu_projects_title]}" || return 0
+    _run_with_project_context "$SELECTED_PROJECT" do_backup
     press_enter_back
 }
 
 _manual_restore_with_project_select() {
-    local target
-    target="$(_select_connected_project "${L[menu_projects_title]}")" || return 0
-    _run_with_project_context "$target" do_restore
+    _select_connected_project "${L[menu_projects_title]}" || return 0
+    _run_with_project_context "$SELECTED_PROJECT" do_restore
     press_enter_back
 }
 
