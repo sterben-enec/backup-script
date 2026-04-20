@@ -960,16 +960,16 @@ L[menu_db_ext]="DB: External"
 L[menu_db_none]="DB: not configured"
 L[menu_create_backup]="Create backup manually"
 L[menu_restore]="Restore from backup"
-L[menu_auto_send]="Schedule settings"
-L[menu_upload_method]="Upload method"
+L[menu_auto_send]="Backup schedule"
+L[menu_upload_method]="Upload methods"
 L[menu_settings]="Configuration"
 L[menu_update]="Update script"
 L[menu_remove]="Remove script"
 L[menu_shortcut]="Quick launch:"
 L[menu_author]="Author:"
 L[menu_tab_ops]="Operations"
-L[menu_tab_config]="Configuration"
-L[menu_tab_service]="Service"
+L[menu_tab_config]="Projects"
+L[menu_tab_service]="Settings"
 L[menu_tabs_label]="Tabs:"
 L[menu_tab_current]="Current tab:"
 L[menu_tab_prev]="Previous tab"
@@ -996,7 +996,7 @@ L[menu_projects_status_active]="Active"
 L[menu_projects_status_ready]="Ready"
 L[menu_projects_status_attention]="Needs setup"
 L[menu_upload_configured]="Configured upload methods:"
-L[menu_actions_for_tab]="Actions for tab:"
+L[menu_projects_list]="Project list"
 }
 
 ###############################################################################
@@ -1570,16 +1570,16 @@ L[menu_db_ext]="БД: Внешняя"
 L[menu_db_none]="БД: не настроена"
 L[menu_create_backup]="Создание бэкапа вручную"
 L[menu_restore]="Восстановление из бэкапа"
-L[menu_auto_send]="Настройка расписания"
-L[menu_upload_method]="Способ отправки"
+L[menu_auto_send]="Расписание бэкапов"
+L[menu_upload_method]="Способы отправки"
 L[menu_settings]="Настройка конфигурации"
 L[menu_update]="Обновление скрипта"
-L[menu_remove]="Удаление скрипта"
+L[menu_remove]="Удалить скрипт"
 L[menu_shortcut]="Быстрый запуск:"
 L[menu_author]="Автор:"
 L[menu_tab_ops]="Операции"
-L[menu_tab_config]="Настройки"
-L[menu_tab_service]="Сервис"
+L[menu_tab_config]="Проекты"
+L[menu_tab_service]="Настройки"
 L[menu_tabs_label]="Вкладки:"
 L[menu_tab_current]="Текущая вкладка:"
 L[menu_tab_prev]="Предыдущая вкладка"
@@ -1606,7 +1606,7 @@ L[menu_projects_status_active]="Активный"
 L[menu_projects_status_ready]="Готов"
 L[menu_projects_status_attention]="Требует настройки"
 L[menu_upload_configured]="Настроенные способы отправки:"
-L[menu_actions_for_tab]="Действия для вкладки:"
+L[menu_projects_list]="Список проектов"
 }
 
 ###############################################################################
@@ -3372,7 +3372,7 @@ cron_menu() {
 # Показать текущий статус cron
 _cron_status_line() {
     local current
-    current=$({ crontab -l 2>/dev/null || true; } | grep -F "$(_cron_marker)" || true)
+    current=$({ crontab -l 2>/dev/null || true; } | grep -aF "$(_cron_marker)" || true)
     if [[ -n "$current" ]]; then
         local schedule; schedule=$(echo "$current" | awk '{print $1,$2,$3,$4,$5}')
         echo "${L[cron_on]} ${schedule} ${L[cron_utc]}"
@@ -3450,7 +3450,7 @@ _install_cron() {
 
     # Удалить старые записи этого проекта
     local current_cron
-    current_cron=$({ crontab -l 2>/dev/null || true; } | grep -vF "$marker" || true)
+    current_cron=$({ crontab -l 2>/dev/null || true; } | grep -avF "$marker" || true)
 
     # Добавить SHELL и PATH если нет
     local new_cron=""
@@ -3479,7 +3479,7 @@ _install_cron() {
 _cron_disable() {
     log_step "${L[cron_disabling]}"
     local current_cron
-    current_cron=$({ crontab -l 2>/dev/null || true; } | grep -vF "$(_cron_marker)" || true)
+    current_cron=$({ crontab -l 2>/dev/null || true; } | grep -avF "$(_cron_marker)" || true)
     echo "$current_cron" | crontab -
     log_info "${L[cron_disabled]}"
 }
@@ -4462,8 +4462,8 @@ do_remove() {
 
     # Cron
     log_step "${L[rm_cron_removing]}"
-    if crontab -l 2>/dev/null | grep -q "universal-backup"; then
-        crontab -l 2>/dev/null | grep -v "universal-backup" | crontab -
+    if crontab -l 2>/dev/null | grep -aqF "universal-backup"; then
+        crontab -l 2>/dev/null | grep -avF "universal-backup" | crontab -
         log_info "${L[rm_cron_removed]}"
     else
         log_info "${L[rm_cron_none]}"
@@ -4762,7 +4762,7 @@ _menu_choose_upload_method() {
 
 _render_tab_menu() {
     local current_tab="$1"
-    echo -e "  ${L[menu_actions_for_tab]} ${BOLD}$(_tab_title "$current_tab")${NC}"
+    : "${current_tab:?}"
     echo "  ${L[menu_tip_actions]}"
     echo ""
 }
@@ -4865,19 +4865,19 @@ _main_menu() {
         local -a main_labels=()
         case "$current_tab" in
             ops)
-                options_for_tab="1 2 3 4 0"
+                options_for_tab="1 2 0"
                 current_choice="$choice_ops"
-                main_labels=("${L[menu_create_backup]}" "${L[menu_restore]}" "${L[menu_auto_send]}" "${L[menu_upload_method]}" "${L[exit]}")
+                main_labels=("${L[menu_create_backup]}" "${L[menu_restore]}" "${L[exit]}")
                 ;;
             config)
-                options_for_tab="1 2 3 4 5 6 0"
+                options_for_tab="1 0"
                 current_choice="$choice_config"
-                main_labels=("${L[menu_tab_quick_settings]}" "${L[menu_tab_projects]}" "${L[menu_tab_db]}" "${L[menu_tab_retention]}" "${L[menu_tab_language]}" "${L[menu_tab_auto_update]}" "${L[exit]}")
+                main_labels=("${L[menu_projects_list]}" "${L[exit]}")
                 ;;
             service)
-                options_for_tab="1 2 3 0"
+                options_for_tab="1 2 3 4 5 6 0"
                 current_choice="$choice_service"
-                main_labels=("${L[menu_update]}" "${L[menu_tab_check_update]}" "${L[menu_tab_remove]}" "${L[exit]}")
+                main_labels=("${L[menu_auto_send]}" "${L[menu_upload_method]}" "${L[st_retention_settings]}" "${L[st_lang]}" "${L[menu_update]}" "${L[menu_remove]}" "${L[exit]}")
                 ;;
         esac
 
@@ -4901,27 +4901,23 @@ _main_menu() {
                 case "$choice" in
                     1) do_backup; press_enter_back ;;
                     2) do_restore; press_enter_back ;;
-                    3) cron_menu ;;
-                    4) _menu_choose_upload_method ;;
                     *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
                 esac
                 ;;
             config)
                 case "$choice" in
-                    1) settings_menu ;;
-                    2) _settings_project ;;
-                    3) _settings_db ;;
-                    4) _settings_retention ;;
-                    5) _settings_lang; save_config "$CONFIG_FILE"; press_enter ;;
-                    6) _settings_autoupdate; save_config "$CONFIG_FILE"; press_enter ;;
+                    1) _settings_project ;;
                     *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
                 esac
                 ;;
             service)
                 case "$choice" in
-                    1) do_update ;;
-                    2) check_update; press_enter_back ;;
-                    3) do_remove ;;
+                    1) cron_menu ;;
+                    2) _menu_choose_upload_method ;;
+                    3) _settings_retention ;;
+                    4) _settings_lang; save_config "$CONFIG_FILE"; press_enter ;;
+                    5) do_update ;;
+                    6) do_remove ;;
                     *) log_warn "${L[invalid_input_select]}"; sleep 1 ;;
                 esac
                 ;;
