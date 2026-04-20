@@ -218,8 +218,8 @@ _menu_select() {
                 marker="${BOLD}${BRIGHT_CYAN}❯${NC}"
                 label_fmt="${BOLD}${WHITE}"
             else
-                marker="${DIM} ${NC}"
-                label_fmt="${DIM}"
+                marker=" "
+                label_fmt="${WHITE}"
             fi
             printf "\r\033[2K  %s ${label_fmt}%s${NC}\n" "$marker" "${labels[$i]}"
         done
@@ -5677,7 +5677,7 @@ _render_upload_methods_overview() {
         methods_text="${methods[*]}"
     fi
 
-    echo -e "  ${DIM}${L[menu_upload_configured]}${NC} ${BRIGHT_YELLOW}${methods_text}${NC}"
+    echo -e "  ${WHITE}${L[menu_upload_configured]}${NC} ${BRIGHT_YELLOW}${methods_text}${NC}"
     echo ""
 }
 
@@ -5696,7 +5696,7 @@ _render_main_header() {
     echo -e "  ${BOLD}${BRIGHT_CYAN}┌${border}┐${NC}"
     echo -e "  ${BOLD}${BRIGHT_CYAN}│${NC}  ${BOLD}${WHITE}>>  ${title}${NC}  ${BOLD}${BRIGHT_CYAN}│${NC}"
     echo -e "  ${BOLD}${BRIGHT_CYAN}└${border}┘${NC}"
-    echo -e "  ${DIM}${L[menu_version]} ${BRIGHT_YELLOW}${SCRIPT_VERSION}${NC}${DIM}  ·  ${L[menu_author]} ${clean_author}${NC}"
+    echo -e "  ${WHITE}${L[menu_version]} ${BRIGHT_YELLOW}${SCRIPT_VERSION}${NC}${WHITE}  ·  ${L[menu_author]} ${BRIGHT_GREEN}${clean_author}${NC}"
     echo ""
 }
 
@@ -5707,23 +5707,23 @@ _render_tabs_panel() {
     case "$current_tab" in
         ops)
             tab_ops="${BOLD}${BRIGHT_CYAN}▶ ${L[menu_tab_ops]}${NC}"
-            tab_cfg="${DIM}  ${L[menu_tab_config]}${NC}"
-            tab_srv="${DIM}  ${L[menu_tab_service]}${NC}"
+            tab_cfg="${WHITE}  ${L[menu_tab_config]}${NC}"
+            tab_srv="${WHITE}  ${L[menu_tab_service]}${NC}"
             ;;
         config)
-            tab_ops="${DIM}  ${L[menu_tab_ops]}${NC}"
+            tab_ops="${WHITE}  ${L[menu_tab_ops]}${NC}"
             tab_cfg="${BOLD}${BRIGHT_CYAN}▶ ${L[menu_tab_config]}${NC}"
-            tab_srv="${DIM}  ${L[menu_tab_service]}${NC}"
+            tab_srv="${WHITE}  ${L[menu_tab_service]}${NC}"
             ;;
         service)
-            tab_ops="${DIM}  ${L[menu_tab_ops]}${NC}"
-            tab_cfg="${DIM}  ${L[menu_tab_config]}${NC}"
+            tab_ops="${WHITE}  ${L[menu_tab_ops]}${NC}"
+            tab_cfg="${WHITE}  ${L[menu_tab_config]}${NC}"
             tab_srv="${BOLD}${BRIGHT_CYAN}▶ ${L[menu_tab_service]}${NC}"
             ;;
     esac
 
     echo -e "  ${tab_ops}  ${DIM}│${NC}  ${tab_cfg}  ${DIM}│${NC}  ${tab_srv}"
-    echo -e "  ${DIM}← → ${L[menu_tip_tabs]}${NC}"
+    echo -e "  ${WHITE}← → ${L[menu_tip_tabs]}${NC}"
     echo ""
 }
 
@@ -5998,8 +5998,8 @@ _read_main_menu_choice() {
                 marker="${BOLD}${BRIGHT_CYAN}❯${NC}"
                 label_fmt="${BOLD}${WHITE}"
             else
-                marker="${DIM} ${NC}"
-                label_fmt="${DIM}"
+                marker=" "
+                label_fmt="${WHITE}"
             fi
             printf "\r\033[2K  %s ${label_fmt}%s${NC}\n" "$marker" "${labels[$j]}"
         done
