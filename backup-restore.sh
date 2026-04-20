@@ -3861,7 +3861,7 @@ _apply_local_retention() {
 # Главная функция восстановления
 # ─────────────────────────────────────────────
 do_restore() {
-    _section_header "♻" "${L[rs_title]}"
+    _section_header "<<" "${L[rs_title]}"
 
     # Источник бэкапа
     _menu_select "1 2 0" "1" "${L[rs_source_local]}" "${L[rs_source_s3]}" "${L[back]}"
@@ -4075,7 +4075,7 @@ cron_menu() {
 
     while true; do
         clear
-        _section_header "⏰" "${L[cron_title]}"
+        _section_header "[*]" "${L[cron_title]}"
         _cron_status_line
         echo ""
         _menu_select "1 2 0" "1" "${L[cron_enable]}" "${L[cron_disable]}" "${L[back_to_menu]}"
@@ -4732,7 +4732,7 @@ _settings_telegram() {
     while true; do
         clear
         echo ""
-        _section_header "✉" "${L[st_tg_title]}"
+        _section_header "[~]" "${L[st_tg_title]}"
         echo -e "  ${DIM}${L[st_tg_token]}${NC}  ${BRIGHT_YELLOW}${CFG_BOT_TOKEN:+***}${NC}${DIM}${CFG_BOT_TOKEN:-${L[not_set]}}${NC}"
         echo -e "  ${DIM}${L[st_tg_chatid]}${NC} ${BRIGHT_YELLOW}${CFG_CHAT_ID:-${L[not_set]}}${NC}"
         echo -e "  ${DIM}${L[st_tg_thread]}${NC} ${CFG_THREAD_ID:-${DIM}${L[not_set]}${NC}}"
@@ -4775,7 +4775,7 @@ _settings_telegram() {
 _settings_s3() {
     while true; do
         clear
-        _section_header "☁" "${L[st_s3_title]}"
+        _section_header "[^]" "${L[st_s3_title]}"
         echo -e "  ${DIM}${L[st_s3_endpoint]}${NC} ${BRIGHT_YELLOW}${CFG_S3_ENDPOINT:-${DIM}${L[not_set]}}${NC}"
         echo -e "  ${DIM}${L[st_s3_region]}${NC}   ${BRIGHT_YELLOW}${CFG_S3_REGION:-${DIM}${L[not_set]}}${NC}"
         echo -e "  ${DIM}${L[st_s3_bucket]}${NC}   ${BRIGHT_YELLOW}${CFG_S3_BUCKET:-${DIM}${L[not_set]}}${NC}"
@@ -4809,7 +4809,7 @@ _settings_s3() {
 _settings_gd() {
     while true; do
         clear
-        _section_header "🔑" "${L[st_gd_title]}"
+        _section_header "[k]" "${L[st_gd_title]}"
         echo -e "  ${DIM}${L[st_gd_client_id]}${NC} ${CFG_GD_CLIENT_ID:+${CYAN}${CFG_GD_CLIENT_ID:0:10}…${NC}}${CFG_GD_CLIENT_ID:-${DIM}${L[not_set]}${NC}}"
         echo -e "  ${DIM}${L[st_gd_secret]}${NC}    ${CFG_GD_CLIENT_SECRET:+${DIM}***${NC}}${CFG_GD_CLIENT_SECRET:-${DIM}${L[not_set]}${NC}}"
         echo -e "  ${DIM}${L[st_gd_refresh]}${NC}   ${CFG_GD_REFRESH_TOKEN:+${BRIGHT_GREEN}✔ set${NC}}${CFG_GD_REFRESH_TOKEN:-${DIM}${L[not_set]}${NC}}"
@@ -4837,7 +4837,7 @@ _settings_gd() {
 _settings_db() {
     while true; do
         clear
-        _section_header "🗃" "${L[st_db_title]}"
+        _section_header "[db]" "${L[st_db_title]}"
         local type_label
         case "$CFG_DB_TYPE" in
             docker)   type_label="${L[st_db_type_docker]}" ;;
@@ -5183,7 +5183,7 @@ _settings_project_delete_current() {
 _settings_project() {
     while true; do
         clear
-        _section_header "📦" "${L[st_project_title]}"
+        _section_header "[P]" "${L[st_project_title]}"
         echo -e "  ${DIM}ID:${NC} ${CYAN}${CFG_ACTIVE_PROJECT:-${L[not_set]}}${NC}"
         if [[ "${CFG_PROJECT_ENABLED:-true}" == "true" ]]; then
             echo -e "  ${DIM}${L[st_project_backup_status]}${NC} ${BRIGHT_GREEN}● ${L[st_project_backup_on]}${NC}"
@@ -5602,7 +5602,7 @@ _render_projects_overview() {
     local bot="${DIM}  └──────────────────┴──────────────────────────┴────────────┴────────────┴────────────┘${NC}"
 
     echo -e "$top"
-    printf "  ${DIM}│${NC} ${BOLD}%-16s${NC} ${DIM}│${NC} ${BOLD}%-24s${NC} ${DIM}│${NC} ${BOLD}%-10s${NC} ${DIM}│${NC} ${BOLD}%-10s${NC} ${DIM}│${NC} ${BOLD}%-10s${NC} ${DIM}│${NC}\n" \
+    printf "  ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-16s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-24s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC}\n" \
         "${L[menu_projects_col_id]}" \
         "${L[menu_projects_col_name]}" \
         "${L[menu_projects_col_db]}" \
@@ -5627,10 +5627,10 @@ _render_projects_overview() {
         fi
 
         case "$db_type" in
-            docker)   db_label="🐳 Docker";   db_color="${CYAN}" ;;
-            external) db_label="⚡ External";  db_color="${YELLOW}" ;;
-            none)     db_label="— None";       db_color="${DIM}" ;;
-            *)        db_label="$db_type";     db_color="${NC}" ;;
+            docker)   db_label="Docker";   db_color="${CYAN}" ;;
+            external) db_label="External"; db_color="${YELLOW}" ;;
+            none)     db_label="None";     db_color="${DIM}" ;;
+            *)        db_label="$db_type"; db_color="${NC}" ;;
         esac
         upload_label="$(_upload_methods_text "$upload_methods")"
 
@@ -5686,10 +5686,16 @@ _render_main_header() {
     local clean_author
     clean_author="$(_sanitize_text "$SCRIPT_AUTHOR")"
 
+    local title="${L[menu_title]}"
+    local title_len=$(( ${#title} + 6 ))  # учитываем "  >>  " слева
+    local border=""
+    local i
+    for (( i=0; i < title_len + 4; i++ )); do border+="─"; done
+
     echo ""
-    echo -e "  ${BOLD}${BRIGHT_CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${BOLD}${BRIGHT_CYAN}║${NC}  ${BOLD}${WHITE}🗄  ${L[menu_title]}${NC}${BOLD}${BRIGHT_CYAN}${NC}"
-    echo -e "  ${BOLD}${BRIGHT_CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo -e "  ${BOLD}${BRIGHT_CYAN}┌${border}┐${NC}"
+    echo -e "  ${BOLD}${BRIGHT_CYAN}│${NC}  ${BOLD}${WHITE}>>  ${title}${NC}  ${BOLD}${BRIGHT_CYAN}│${NC}"
+    echo -e "  ${BOLD}${BRIGHT_CYAN}└${border}┘${NC}"
     echo -e "  ${DIM}${L[menu_version]} ${BRIGHT_YELLOW}${SCRIPT_VERSION}${NC}${DIM}  ·  ${L[menu_author]} ${clean_author}${NC}"
     echo ""
 }
@@ -5716,8 +5722,8 @@ _render_tabs_panel() {
             ;;
     esac
 
-    echo -e "  ${tab_ops}   ${tab_cfg}   ${tab_srv}"
-    echo -e "  ${DIM}${L[menu_tip_tabs]}${NC}"
+    echo -e "  ${tab_ops}  ${DIM}│${NC}  ${tab_cfg}  ${DIM}│${NC}  ${tab_srv}"
+    echo -e "  ${DIM}← → ${L[menu_tip_tabs]}${NC}"
     echo ""
 }
 
@@ -5955,7 +5961,8 @@ _manual_restore_with_project_select() {
 _render_tab_menu() {
     local current_tab="$1"
     : "${current_tab:?}"
-    echo "  ${L[menu_tip_actions]}"
+    echo -e "  ${DIM}────────────────────────────────────────${NC}"
+    echo -e "  ${BOLD}${WHITE}${L[menu_tip_actions]}${NC}"
     echo ""
 }
 
