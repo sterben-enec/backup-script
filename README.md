@@ -28,9 +28,9 @@
 ## Быстрый старт
 
 ```bash
-curl -o ~/backup-restore.sh https://raw.githubusercontent.com/sterben-enec/backup-script/main/backup-restore.sh \
-  && chmod +x ~/backup-restore.sh \
-  && ~/backup-restore.sh
+curl -o ~/backrest https://raw.githubusercontent.com/sterben-enec/backrest/main/backup-restore.sh \
+  && chmod +x ~/backrest \
+  && ~/backrest
 ```
 
 При первом запуске откроется мастер настройки: язык, Telegram, первый проект, БД, способ отправки.

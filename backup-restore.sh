@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # VERSION=1.0.0
 #
-# Universal Backup & Restore
+# backrest — Backup & Restore
 # Поддерживает: PostgreSQL, MySQL/MariaDB, MongoDB (Docker или external)
 # Хранилища: Telegram, S3-compatible, Google Drive
 # Лицензия: MIT
 #
 # Использование:
-#   ./backup-restore.sh                    — интерактивное меню
-#   ./backup-restore.sh backup             — создать бэкап немедленно (для cron)
-#   ./backup-restore.sh restore            — восстановление
-#   ./backup-restore.sh --config /path/to/config.cfg
-#   ./backup-restore.sh --project PROJECT backup
+#   ./backrest                    — интерактивное меню
+#   ./backrest backup             — создать бэкап немедленно (для cron)
+#   ./backrest restore            — восстановление
+#   ./backrest --config /path/to/config.cfg
+#   ./backrest --project PROJECT backup
 #
-# GitHub: https://github.com/sterben-enec/backup-script
+# GitHub: https://github.com/sterben-enec/backrest
 #
 set -euo pipefail
 
@@ -3489,8 +3489,8 @@ _cron_disable() {
 ###############################################################################
 # Проверка обновлений и самообновление скрипта
 
-GITHUB_RAW_URL="https://raw.githubusercontent.com/sterben-enec/backup-script/main/backup-restore.sh"
-GITHUB_API_URL="https://api.github.com/repos/sterben-enec/backup-script/releases/latest"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/sterben-enec/backrest/main/backup-restore.sh"
+GITHUB_API_URL="https://api.github.com/repos/sterben-enec/backrest/releases/latest"
 
 # ─────────────────────────────────────────────
 # Проверить и применить обновление
