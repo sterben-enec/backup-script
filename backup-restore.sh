@@ -461,6 +461,20 @@ ensure_awscli() {
     # Fallback: официальный установщик
     log_warn "${L[s3_cli_fallback]}"
     local tmp; tmp=$(mktemp -d)
+    if ! command -v unzip &>/dev/null; then
+        log_step "${L[s3_installing_unzip]}"
+        if command -v apt-get &>/dev/null; then
+            apt-get install -y unzip &>/dev/null || {
+                cleanup_tmpdir "$tmp"
+                log_error "${L[s3_cli_unzip_missing]}"
+                return 1
+            }
+        else
+            cleanup_tmpdir "$tmp"
+            log_error "${L[s3_cli_unzip_missing]}"
+            return 1
+        fi
+    fi
     curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$tmp/awscliv2.zip" \
         && unzip -q "$tmp/awscliv2.zip" -d "$tmp" \
         && "$tmp/aws/install" \
@@ -543,6 +557,8 @@ L[s3_cli_installed]="AWS CLI successfully installed."
 L[s3_cli_fallback]="Package awscli unavailable, installing via official AWS installer..."
 L[s3_aws_not_found]="AWS CLI not installed. Select S3 in settings for automatic installation."
 L[ul_s3_aws_needed]="Failed to install AWS CLI. It is required for S3 support."
+L[s3_installing_unzip]="Installing unzip..."
+L[s3_cli_unzip_missing]="Failed to install unzip (required for AWS CLI installer)."
 
 # Configuration
 L[cfg_loading]="Loading configuration..."
@@ -1197,6 +1213,8 @@ L[s3_cli_installed]="AWS CLI успешно установлен."
 L[s3_cli_fallback]="Пакет awscli недоступен, установка через официальный установщик AWS..."
 L[s3_aws_not_found]="AWS CLI не установлен. Выберите S3 в настройках для автоматической установки."
 L[ul_s3_aws_needed]="Не удалось установить AWS CLI. Он необходим для работы с S3."
+L[s3_installing_unzip]="Установка unzip..."
+L[s3_cli_unzip_missing]="Не удалось установить unzip (он нужен для установщика AWS CLI)."
 
 # Конфигурация
 L[cfg_loading]="Загрузка конфигурации..."
@@ -3187,14 +3205,22 @@ gd_upload() {
 
     # Формируем multipart/related тело вручную
     local boundary="boundary_$(date +%s)_$$"
-    local body_file; body_file=$(mktemp)
-    # Гарантируем удаление temp-файла при любом исходе
-    trap 'rm -f "$body_file"' RETURN
+    local body_file
+    body_file="$(mktemp)" || return 1
 
-    printf -- "--%s\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n%s\r\n--%s\r\nContent-Type: application/gzip\r\n\r\n" \
-        "$boundary" "$metadata" "$boundary" > "$body_file"
-    cat "$file" >> "$body_file"
-    printf -- "\r\n--%s--\r\n" "$boundary" >> "$body_file"
+    if ! printf -- "--%s\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n%s\r\n--%s\r\nContent-Type: application/gzip\r\n\r\n" \
+        "$boundary" "$metadata" "$boundary" > "$body_file"; then
+        rm -f "$body_file"
+        return 1
+    fi
+    if ! cat "$file" >> "$body_file"; then
+        rm -f "$body_file"
+        return 1
+    fi
+    if ! printf -- "\r\n--%s--\r\n" "$boundary" >> "$body_file"; then
+        rm -f "$body_file"
+        return 1
+    fi
 
     local response_with_code response http_code
     response_with_code="$(curl -sS -X POST "$GD_API_UPLOAD" \
@@ -3202,6 +3228,7 @@ gd_upload() {
         -H "Content-Type: multipart/related; boundary=${boundary}" \
         --data-binary "@${body_file}" \
         -w $'\n%{http_code}' 2>/dev/null || true)"
+    rm -f "$body_file"
     http_code="${response_with_code##*$'\n'}"
     response="${response_with_code%$'\n'*}"
 
