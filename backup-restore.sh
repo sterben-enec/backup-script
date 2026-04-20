@@ -11,7 +11,7 @@
 #   ./backrest backup             — создать бэкап немедленно (для cron)
 #   ./backrest restore            — восстановление
 #   ./backrest --config /path/to/config.cfg
-#   ./backrest --project PROJECT backup
+#   ./backrest --project PROJECT_ID backup
 #
 # GitHub: https://github.com/sterben-enec/backrest
 #
@@ -92,7 +92,7 @@ BACKREST - BACKUP & RESTORE v${SCRIPT_VERSION}
   $(basename "$0") backup                         Создать бэкап (для cron)
   $(basename "$0") restore                        Интерактивное восстановление
   $(basename "$0") --config /path/cfg             Указать конфиг-файл
-  $(basename "$0") --project project_id backup    Запуск для конкретного проекта
+  $(basename "$0") --project project_id backup    Запуск для конкретного проекта по ID
 
 Переменные окружения:
   CONFIG_FILE            Путь к конфиг-файлу
@@ -2070,30 +2070,27 @@ _project_file_path() {
     echo "${PROJECTS_DIR}/${project_id}.cfg"
 }
 
-_project_slug() {
-    local raw="$1"
-    local slug
-    slug="$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/_/g; s/_\+/_/g; s/^_//; s/_$//')"
-    [[ -z "$slug" ]] && slug="project_$(date +%s)"
-    echo "$slug"
+_is_project_id_valid() {
+    [[ "${1:-}" =~ ^[1-9][0-9]*$ ]]
 }
 
-_project_unique_id() {
-    local base="$1"
-    local candidate="$base"
-    local i=2
-    while [[ -f "$(_project_file_path "$candidate")" ]]; do
-        candidate="${base}_${i}"
-        ((i++))
-    done
-    echo "$candidate"
+_project_next_id() {
+    local max_id=0
+    local id id_num
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        _is_project_id_valid "$id" || continue
+        id_num=$((10#$id))
+        (( id_num > max_id )) && max_id="$id_num"
+    done < <(list_project_ids)
+    echo $((max_id + 1))
 }
 
 list_project_ids() {
     [[ -d "$PROJECTS_DIR" ]] || return 0
     find "$PROJECTS_DIR" -maxdepth 1 -type f -name "*.cfg" -print 2>/dev/null \
         | sed 's#.*/##; s/\.cfg$//' \
-        | sort
+        | sort -V
 }
 
 project_count() {
@@ -2169,20 +2166,73 @@ project_display_name() {
 resolve_project_id() {
     local selector="$1"
     [[ -z "$selector" ]] && return 1
-    if [[ -f "$(_project_file_path "$selector")" ]]; then
-        echo "$selector"
-        return 0
-    fi
-    local id name
+    _is_project_id_valid "$selector" || return 1
+    [[ -f "$(_project_file_path "$selector")" ]] || return 1
+    echo "$selector"
+}
+
+_migrate_project_ids_to_numeric() {
+    [[ -d "$PROJECTS_DIR" ]] || return 0
+
+    local -a ids=()
+    local -A used=()
+    local -A migrated=()
+    local id id_num next_id max_id=0 target
+    local changed="false"
+
     while IFS= read -r id; do
-        [[ -z "$id" ]] && continue
-        name="$(project_display_name "$id")"
-        if [[ "$name" == "$selector" ]]; then
-            echo "$id"
-            return 0
-        fi
+        [[ -n "$id" ]] && ids+=("$id")
     done < <(list_project_ids)
-    return 1
+
+    for id in "${ids[@]}"; do
+        _is_project_id_valid "$id" || continue
+        id_num=$((10#$id))
+        used["$id_num"]=1
+        (( id_num > max_id )) && max_id="$id_num"
+    done
+
+    next_id=$((max_id + 1))
+    (( next_id < 1 )) && next_id=1
+
+    for id in "${ids[@]}"; do
+        _is_project_id_valid "$id" && continue
+        while [[ -n "${used[$next_id]+x}" ]]; do
+            ((next_id++))
+        done
+        target="$next_id"
+        if mv -f "$(_project_file_path "$id")" "$(_project_file_path "$target")"; then
+            migrated["$id"]="$target"
+            used["$target"]=1
+            changed="true"
+        fi
+        ((next_id++))
+    done
+
+    if [[ -n "${CFG_ACTIVE_PROJECT:-}" && -n "${migrated[$CFG_ACTIVE_PROJECT]+x}" ]]; then
+        CFG_ACTIVE_PROJECT="${migrated[$CFG_ACTIVE_PROJECT]}"
+        CFG_PROJECT_ID="$CFG_ACTIVE_PROJECT"
+        changed="true"
+    fi
+
+    if (( ${#migrated[@]} > 0 )) && command -v crontab >/dev/null 2>&1; then
+        local cron_now cron_new old_id new_id
+        cron_now="$(crontab -l 2>/dev/null || true)"
+        if [[ -n "$cron_now" ]]; then
+            cron_new="$cron_now"
+            for old_id in "${!migrated[@]}"; do
+                new_id="${migrated[$old_id]}"
+                cron_new="${cron_new//--project ${old_id} /--project ${new_id} }"
+                cron_new="${cron_new// # universal-backup: ${old_id}/ # universal-backup: ${new_id}}"
+            done
+            if [[ "$cron_new" != "$cron_now" ]]; then
+                printf '%s\n' "$cron_new" | crontab - 2>/dev/null || true
+            fi
+        fi
+    fi
+
+    if [[ "$changed" == "true" ]]; then
+        save_global_config "$CONFIG_FILE" || true
+    fi
 }
 
 activate_project_by_selector() {
@@ -2352,9 +2402,8 @@ load_project_config() {
 _migrate_legacy_single_project() {
     [[ -n "${CFG_ACTIVE_PROJECT:-}" ]] && return 0
     if [[ -n "${CFG_PROJECT_NAME:-}" || -n "${CFG_PROJECT_DIR:-}" || "$CFG_DB_TYPE" != "none" ]]; then
-        local base id
-        base="$(_project_slug "${CFG_PROJECT_NAME:-backup}")"
-        id="$(_project_unique_id "$base")"
+        local id
+        id="$(_project_next_id)"
         CFG_PROJECT_ID="$id"
         CFG_ACTIVE_PROJECT="$id"
         save_project_config "$id"
@@ -2395,6 +2444,7 @@ load_config() {
     ensure_runtime_dirs
 
     _migrate_legacy_single_project
+    _migrate_project_ids_to_numeric
 
     if [[ -n "${CFG_ACTIVE_PROJECT:-}" ]]; then
         if ! load_project_config "$CFG_ACTIVE_PROJECT"; then
@@ -2419,7 +2469,7 @@ load_config() {
 save_config() {
     local cfg_file="$1"
     if [[ -z "${CFG_ACTIVE_PROJECT:-}" ]]; then
-        CFG_ACTIVE_PROJECT="$(_project_unique_id "$(_project_slug "${CFG_PROJECT_NAME:-backup}")")"
+        CFG_ACTIVE_PROJECT="$(_project_next_id)"
     fi
     CFG_PROJECT_ID="$CFG_ACTIVE_PROJECT"
     ensure_runtime_dirs
@@ -2506,7 +2556,7 @@ initial_setup() {
     reset_project_profile_defaults
     _configure_project_wizard
 
-    CFG_ACTIVE_PROJECT="$(_project_unique_id "$(_project_slug "$CFG_PROJECT_NAME")")"
+    CFG_ACTIVE_PROJECT="$(_project_next_id)"
     CFG_PROJECT_ID="$CFG_ACTIVE_PROJECT"
 
     save_config "$cfg_file"
@@ -4992,7 +5042,7 @@ _settings_projects_add() {
     _configure_project_wizard
 
     local new_id
-    new_id="$(_project_unique_id "$(_project_slug "${CFG_PROJECT_NAME:-backup}")")"
+    new_id="$(_project_next_id)"
     CFG_ACTIVE_PROJECT="$new_id"
     CFG_PROJECT_ID="$new_id"
 
@@ -5480,7 +5530,7 @@ fi
 # Явный выбор проекта через CLI (без изменения сохраненного активного профиля)
 if [[ -n "$CLI_PROJECT" ]]; then
     if ! activate_project_by_selector "$CLI_PROJECT" false; then
-        log_error "Проект '$CLI_PROJECT' не найден."
+        log_error "Проект с ID '$CLI_PROJECT' не найден."
         exit 1
     fi
 fi
