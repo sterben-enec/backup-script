@@ -874,6 +874,19 @@ L[st_project_scope_full]="Full directory"
 L[st_project_scope_selected]="Selected files/folders"
 L[st_project_scope_pick]="Pick files/folders"
 L[st_project_scope_none]="No items selected"
+L[st_project_backup_status]="Backup status:"
+L[st_project_backup_on]="Active"
+L[st_project_backup_off]="Inactive"
+L[st_project_toggle_backup]="Enable/disable backup"
+L[st_project_change_components]="Change backup composition"
+L[st_project_pick_files]="Pick files for backup"
+L[st_project_remove]="Remove project"
+L[st_project_components_title]="Backup composition"
+L[st_project_component_db]="Database"
+L[st_project_component_files]="Files"
+L[st_project_components_help]="Arrows: move | Space: toggle | Enter: confirm"
+L[st_project_components_saved]="Backup composition saved."
+L[st_project_deleted]="Project removed."
 L[pick_title]="Directory content selection"
 L[pick_help]="Arrows: move | PgUp/PgDn: page | Enter: open/confirm | Space: select | Backspace/Left: up | c: confirm"
 L[pick_current]="Current:"
@@ -994,10 +1007,11 @@ L[menu_projects_col_db]="DB"
 L[menu_projects_col_upload]="Upload"
 L[menu_projects_col_status]="Status"
 L[menu_projects_status_active]="Active"
-L[menu_projects_status_ready]="Ready"
-L[menu_projects_status_attention]="Needs setup"
+L[menu_projects_status_ready]="Not active"
+L[menu_projects_status_attention]="Not active"
 L[menu_upload_configured]="Configured upload methods:"
 L[menu_projects_list]="Project list"
+L[menu_project_add]="Add new project"
 }
 
 ###############################################################################
@@ -1485,6 +1499,19 @@ L[st_project_scope_full]="Вся директория"
 L[st_project_scope_selected]="Выбранные файлы/папки"
 L[st_project_scope_pick]="Выбрать файлы/папки"
 L[st_project_scope_none]="Ничего не выбрано"
+L[st_project_backup_status]="Статус бэкапа:"
+L[st_project_backup_on]="Активный"
+L[st_project_backup_off]="Не активен"
+L[st_project_toggle_backup]="Вкл/выкл бекап"
+L[st_project_change_components]="Изменить состав бекапа"
+L[st_project_pick_files]="Выбрать файлы для бекапа"
+L[st_project_remove]="Удалить проект"
+L[st_project_components_title]="Состав бэкапа"
+L[st_project_component_db]="БД"
+L[st_project_component_files]="Файлы"
+L[st_project_components_help]="Стрелки: перемещение | Пробел: выбрать | Enter: подтвердить"
+L[st_project_components_saved]="Состав бэкапа сохранён."
+L[st_project_deleted]="Проект удалён."
 L[pick_title]="Выбор содержимого директории"
 L[pick_help]="Стрелки: перемещение | PgUp/PgDn: страница | Enter: открыть/подтвердить | Пробел: выбрать | Backspace/Влево: вверх | c: подтвердить"
 L[pick_current]="Текущая:"
@@ -1605,10 +1632,11 @@ L[menu_projects_col_db]="БД"
 L[menu_projects_col_upload]="Отправка"
 L[menu_projects_col_status]="Статус"
 L[menu_projects_status_active]="Активный"
-L[menu_projects_status_ready]="Готов"
-L[menu_projects_status_attention]="Требует настройки"
+L[menu_projects_status_ready]="Не активен"
+L[menu_projects_status_attention]="Не активен"
 L[menu_upload_configured]="Настроенные способы отправки:"
 L[menu_projects_list]="Список проектов"
+L[menu_project_add]="Добавить новый проект"
 }
 
 ###############################################################################
@@ -1666,8 +1694,10 @@ CFG_PROJECT_NAME=""
 CFG_PROJECT_DIR=""
 CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
 CFG_RETENTION_DAYS="30"
+CFG_PROJECT_ENABLED="true"
 
 # Флаги включения источников (профиль проекта)
+CFG_BACKUP_DB_ENABLED="true"
 CFG_BACKUP_DIR_ENABLED="true"
 CFG_BACKUP_DIR_MODE="full"      # full | selected
 CFG_BACKUP_DIR_ITEMS=""         # newline-separated relative paths from CFG_PROJECT_DIR
@@ -1749,6 +1779,8 @@ reset_project_profile_defaults() {
     CFG_PROJECT_DIR=""
     CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
     CFG_RETENTION_DAYS="30"
+    CFG_PROJECT_ENABLED="true"
+    CFG_BACKUP_DB_ENABLED="true"
     CFG_BACKUP_DIR_ENABLED="true"
     CFG_BACKUP_DIR_MODE="full"
     CFG_BACKUP_DIR_ITEMS=""
@@ -1879,6 +1911,8 @@ save_project_config() {
         printf 'CFG_PROJECT_DIR=%s\n'        "$(printf '%q' "$CFG_PROJECT_DIR")"
         printf 'CFG_BACKUP_DIR=%s\n'         "$(printf '%q' "$CFG_BACKUP_DIR")"
         printf 'CFG_RETENTION_DAYS=%s\n'     "$CFG_RETENTION_DAYS"
+        printf 'CFG_PROJECT_ENABLED=%s\n'    "$CFG_PROJECT_ENABLED"
+        printf 'CFG_BACKUP_DB_ENABLED=%s\n'  "$CFG_BACKUP_DB_ENABLED"
         printf 'CFG_BACKUP_DIR_ENABLED=%s\n' "$CFG_BACKUP_DIR_ENABLED"
         printf 'CFG_BACKUP_DIR_MODE=%s\n'    "$CFG_BACKUP_DIR_MODE"
         printf 'CFG_BACKUP_DIR_ITEMS=%s\n'   "$(printf '%q' "$CFG_BACKUP_DIR_ITEMS")"
@@ -1894,6 +1928,9 @@ load_project_config() {
     [[ -f "$project_file" ]] || return 1
     # shellcheck source=/dev/null
     source "$project_file"
+    CFG_PROJECT_ENABLED="${CFG_PROJECT_ENABLED:-true}"
+    CFG_BACKUP_DB_ENABLED="${CFG_BACKUP_DB_ENABLED:-true}"
+    CFG_BACKUP_DIR_ENABLED="${CFG_BACKUP_DIR_ENABLED:-true}"
     CFG_BACKUP_DIR_MODE="${CFG_BACKUP_DIR_MODE:-full}"
     CFG_BACKUP_DIR_ITEMS="${CFG_BACKUP_DIR_ITEMS:-}"
     CFG_PROJECT_ID="$project_id"
@@ -1999,6 +2036,9 @@ _configure_project_wizard() {
     done
 
     # По умолчанию бэкап директории целиком
+    CFG_PROJECT_ENABLED="true"
+    CFG_BACKUP_DB_ENABLED="true"
+    CFG_BACKUP_DIR_ENABLED="true"
     CFG_BACKUP_DIR_MODE="full"
     CFG_BACKUP_DIR_ITEMS=""
 
@@ -2890,6 +2930,10 @@ do_backup() {
         log_error "Активный проект не выбран. Откройте настройки проекта и выберите профиль."
         return 1
     fi
+    if [[ "${CFG_PROJECT_ENABLED:-true}" != "true" ]]; then
+        log_warn "Проект '${CFG_PROJECT_NAME}' не активен. Бэкап пропущен."
+        return 1
+    fi
     local ts; ts=$(timestamp)
     local archive_name="${CFG_PROJECT_NAME}_${ts}.tar.gz"
     local backup_dir="$CFG_BACKUP_DIR"
@@ -2911,7 +2955,7 @@ do_backup() {
     log_step "${L[bk_project]} ${CFG_PROJECT_NAME}"
 
     # ── 1. Дамп БД ──────────────────────────────
-    if [[ "$CFG_DB_TYPE" != "none" && -n "$CFG_DB_TYPE" ]]; then
+    if [[ "${CFG_BACKUP_DB_ENABLED:-true}" == "true" && "$CFG_DB_TYPE" != "none" && -n "$CFG_DB_TYPE" ]]; then
         local db_ext
         case "$CFG_DB_ENGINE" in
             mysql|mariadb) db_ext="sql" ;;
@@ -2996,6 +3040,7 @@ do_backup() {
   "project": "${CFG_PROJECT_NAME}",
   "version": "${SCRIPT_VERSION}",
   "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "db_included": ${CFG_BACKUP_DB_ENABLED:-false},
   "db_type": "${CFG_DB_TYPE}",
   "db_engine": "${CFG_DB_ENGINE}",
   "dir_included": ${CFG_BACKUP_DIR_ENABLED:-false},
@@ -4337,6 +4382,105 @@ _settings_projects_delete() {
     fi
 }
 
+_settings_project_components() {
+    local cursor=0 key seq
+    local db_enabled files_enabled
+    db_enabled="${CFG_BACKUP_DB_ENABLED:-true}"
+    files_enabled="${CFG_BACKUP_DIR_ENABLED:-true}"
+
+    while true; do
+        clear
+        echo ""
+        echo -e "${BOLD}${L[st_project_components_title]}${NC}"
+        echo "────────────────────────────────"
+        echo "  ${L[st_project_components_help]}"
+        echo ""
+
+        local db_line files_line confirm_line
+        [[ "$db_enabled" == "true" ]] && db_line="[x] ${L[st_project_component_db]}" || db_line="[ ] ${L[st_project_component_db]}"
+        [[ "$files_enabled" == "true" ]] && files_line="[x] ${L[st_project_component_files]}" || files_line="[ ] ${L[st_project_component_files]}"
+        confirm_line="${L[pick_confirm_item]}"
+
+        local -a lines=("$db_line" "$files_line" "$confirm_line")
+        local i
+        for i in "${!lines[@]}"; do
+            if (( i == cursor )); then
+                echo -e "  ${BOLD}${GREEN}>${NC} ${lines[$i]}"
+            else
+                echo "    ${lines[$i]}"
+            fi
+        done
+
+        IFS= read -rsn1 key || return 1
+        if [[ "$key" == $'\e' ]]; then
+            seq=""
+            while IFS= read -rsn1 -t 0.05 key; do
+                seq+="$key"
+                [[ "$key" =~ [A-Za-z~] ]] && break
+            done
+            case "$seq" in
+                "[A"|"OA") cursor=$(( (cursor - 1 + 3) % 3 )) ;;
+                "[B"|"OB") cursor=$(( (cursor + 1) % 3 )) ;;
+                "[D"|"OD") return 0 ;;
+            esac
+            continue
+        fi
+
+        if [[ "$key" == " " ]]; then
+            case "$cursor" in
+                0) [[ "$db_enabled" == "true" ]] && db_enabled="false" || db_enabled="true" ;;
+                1) [[ "$files_enabled" == "true" ]] && files_enabled="false" || files_enabled="true" ;;
+            esac
+            continue
+        fi
+
+        if [[ -z "$key" || "$key" == $'\n' || "$key" == $'\r' ]]; then
+            if (( cursor == 2 )); then
+                CFG_BACKUP_DB_ENABLED="$db_enabled"
+                CFG_BACKUP_DIR_ENABLED="$files_enabled"
+                log_info "${L[st_project_components_saved]}"
+                return 0
+            fi
+        fi
+    done
+}
+
+_settings_project_delete_current() {
+    local target="${CFG_ACTIVE_PROJECT:-$CFG_PROJECT_ID}"
+    [[ -z "$target" ]] && return 1
+
+    local ids_count
+    ids_count="$(project_count)"
+    if (( ids_count <= 1 )); then
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            log_warn "Нельзя удалить единственный проект."
+        else
+            log_warn "Cannot remove the only project."
+        fi
+        return 1
+    fi
+
+    local target_name
+    target_name="$(project_display_name "$target")"
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        confirm "Удалить проект '${target_name}' (${target})?" || return 1
+    else
+        confirm "Delete project '${target_name}' (${target})?" || return 1
+    fi
+
+    rm -f "$(_project_file_path "$target")"
+    local next
+    next="$(list_project_ids | head -n1)"
+    if [[ -n "$next" ]]; then
+        load_project_config "$next" || true
+        CFG_ACTIVE_PROJECT="$next"
+        CFG_PROJECT_ID="$next"
+    fi
+    save_global_config "$CONFIG_FILE" || true
+    log_info "${L[st_project_deleted]}"
+    return 0
+}
+
 _settings_project() {
     while true; do
         clear
@@ -4344,56 +4488,54 @@ _settings_project() {
         echo -e "${BOLD}${L[st_project_title]}${NC}"
         echo "────────────────────────────────"
         echo "  ID: ${CFG_ACTIVE_PROJECT:-${L[not_set]}}"
+        if [[ "${CFG_PROJECT_ENABLED:-true}" == "true" ]]; then
+            echo "  ${L[st_project_backup_status]} ${L[st_project_backup_on]}"
+        else
+            echo "  ${L[st_project_backup_status]} ${L[st_project_backup_off]}"
+        fi
         echo "  ${L[st_project_name]} ${CFG_PROJECT_NAME:-${L[not_set]}}"
         echo "  ${L[st_project_dir]}  ${CFG_PROJECT_DIR:-${L[not_set]}}"
-        if [[ "${CFG_BACKUP_DIR_MODE:-full}" == "selected" ]]; then
-            echo "  ${L[st_project_dir_mode]} ${L[st_project_scope_selected]}"
-            echo "  ${L[st_project_dir_items]} $(_project_selected_items_preview)"
-        else
-            echo "  ${L[st_project_dir_mode]} ${L[st_project_scope_full]}"
-        fi
+        echo "  ${L[st_project_dir_items]} $(_project_selected_items_preview)"
         echo ""
-        local project_toggle_dir_label
-        if [[ "$CFG_BACKUP_DIR_ENABLED" == "true" ]]; then
-            project_toggle_dir_label="${L[st_project_disable_dir]}"
-        else
-            project_toggle_dir_label="${L[st_project_enable_dir]}"
-        fi
-        local project_switch_label project_add_label project_remove_label project_list_label
-        if [[ "$CFG_LANG" == "ru" ]]; then
-            project_switch_label="Переключить активный проект"
-            project_add_label="Добавить новый проект"
-            project_remove_label="Удалить проект"
-            project_list_label="Список проектов"
-        else
-            project_switch_label="Switch active project"
-            project_add_label="Add new project"
-            project_remove_label="Remove project"
-            project_list_label="List projects"
-        fi
-        _menu_select "1 2 3 4 5 6 7 8 0" "1" \
-            "${L[st_project_change_name]}" "${L[st_project_change_dir]}" "${L[st_project_change_scope]}" \
-            "$project_toggle_dir_label" \
-            "$project_switch_label" "$project_add_label" "$project_remove_label" "$project_list_label" "${L[back]}"
+        _menu_select "1 2 3 4 5 6 0" "1" \
+            "${L[st_project_toggle_backup]}" \
+            "${L[st_project_change_name]}" \
+            "${L[st_project_change_dir]}" \
+            "${L[st_project_change_components]}" \
+            "${L[st_project_pick_files]}" \
+            "${L[st_project_remove]}" \
+            "${L[back]}"
         choice="$MENU_CHOICE"
         case "$choice" in
-            1) read -rp "${L[st_project_enter_name]}" CFG_PROJECT_NAME; log_info "${L[st_project_name_ok]}" ;;
-            2)
+            1)
+                if [[ "${CFG_PROJECT_ENABLED:-true}" == "true" ]]; then
+                    CFG_PROJECT_ENABLED="false"
+                    log_info "${L[st_project_backup_status]} ${L[st_project_backup_off]}"
+                else
+                    CFG_PROJECT_ENABLED="true"
+                    log_info "${L[st_project_backup_status]} ${L[st_project_backup_on]}"
+                fi
+                ;;
+            2) read -rp "${L[st_project_enter_name]}" CFG_PROJECT_NAME; log_info "${L[st_project_name_ok]}" ;;
+            3)
                 local val; val=$(input_path "${L[st_project_enter_dir]}" true)
                 [[ -n "$val" ]] && CFG_PROJECT_DIR="$val" && log_info "${L[st_project_dir_ok]}"
                 ;;
-            3) _settings_project_scope ;;
-            4)
-                if [[ "$CFG_BACKUP_DIR_ENABLED" == "true" ]]; then
-                    CFG_BACKUP_DIR_ENABLED="false"; log_info "${L[st_project_dir_disabled]}"
-                else
-                    CFG_BACKUP_DIR_ENABLED="true"; log_info "${L[st_project_dir_enabled]}"
+            4) _settings_project_components ;;
+            5)
+                if [[ -z "$CFG_PROJECT_DIR" || ! -d "$CFG_PROJECT_DIR" ]]; then
+                    log_warn "${L[bk_dir_missing]} ${CFG_PROJECT_DIR:-${L[not_set]}}"
+                    press_enter
+                    continue
+                fi
+                _project_dir_picker "$CFG_PROJECT_DIR" || true
+                CFG_BACKUP_DIR_MODE="selected"
+                ;;
+            6)
+                if _settings_project_delete_current; then
+                    return
                 fi
                 ;;
-            5) _settings_projects_switch ;;
-            6) _settings_projects_add ;;
-            7) _settings_projects_delete ;;
-            8) _settings_projects_list; press_enter ;;
             0) return ;;
             *) log_warn "${L[invalid_input_select]}" ;;
         esac
@@ -4691,15 +4833,14 @@ _render_projects_overview() {
     echo "  ${table_line}"
 
     for id in "${ids[@]}"; do
-        local name db_type upload_method status_label db_label upload_label
+        local name db_type upload_method status_label db_label upload_label project_enabled
         name="$(project_display_name "$id")"
         db_type="$(_project_cfg_value "$id" "CFG_DB_TYPE" "none")"
         upload_method="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "telegram")"
+        project_enabled="$(_project_cfg_value "$id" "CFG_PROJECT_ENABLED" "true")"
 
-        if [[ "$id" == "${CFG_ACTIVE_PROJECT:-}" ]]; then
+        if [[ "$project_enabled" == "true" ]]; then
             status_label="${L[menu_projects_status_active]}"
-        elif [[ "$db_type" == "none" ]]; then
-            status_label="${L[menu_projects_status_attention]}"
         else
             status_label="${L[menu_projects_status_ready]}"
         fi
@@ -4816,10 +4957,15 @@ _menu_choose_upload_method() {
 _select_connected_project() {
     SELECTED_PROJECT=""
     local title="${1:-}"
+    local only_enabled="${2:-false}"
     local ids=()
     local id
     while IFS= read -r id; do
-        [[ -n "$id" ]] && ids+=("$id")
+        [[ -z "$id" ]] && continue
+        if [[ "$only_enabled" == "true" ]]; then
+            [[ "$(_project_cfg_value "$id" "CFG_PROJECT_ENABLED" "true")" != "true" ]] && continue
+        fi
+        ids+=("$id")
     done < <(list_project_ids)
 
     if (( ${#ids[@]} == 0 )); then
@@ -4867,7 +5013,7 @@ _run_with_project_context() {
 }
 
 _manual_backup_with_project_select() {
-    _select_connected_project "${L[menu_projects_title]}" || return 0
+    _select_connected_project "${L[menu_projects_title]}" "true" || return 0
     _run_with_project_context "$SELECTED_PROJECT" do_backup
     press_enter_back
 }
@@ -4998,6 +5144,9 @@ _main_menu() {
                     options_for_tab="${options_for_tab:+$options_for_tab }$n"
                     main_labels+=("$(project_display_name "${tab_project_ids[$((n-1))]}") (${tab_project_ids[$((n-1))]})")
                 done
+                local add_idx=$(( ${#tab_project_ids[@]} + 1 ))
+                options_for_tab="${options_for_tab:+$options_for_tab }${add_idx}"
+                main_labels+=("${L[menu_project_add]}")
                 options_for_tab="${options_for_tab:+$options_for_tab }0"
                 current_choice="$choice_config"
                 main_labels+=("${L[exit]}")
@@ -5040,6 +5189,8 @@ _main_menu() {
                         log_warn "${L[invalid_input_select]}"
                         sleep 1
                     fi
+                elif [[ "$choice" =~ ^[0-9]+$ ]] && (( choice == ${#tab_project_ids[@]} + 1 )); then
+                    _settings_projects_add
                 else
                     log_warn "${L[invalid_input_select]}"
                     sleep 1
