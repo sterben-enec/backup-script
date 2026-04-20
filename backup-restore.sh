@@ -5724,22 +5724,11 @@ _render_projects_overview() {
         return
     fi
 
-    local sep="${DIM}  ├──────────────────┼────────────────────────────┼────────────┼────────────┼────────────┤${NC}"
-    local top="${DIM}  ┌──────────────────┬────────────────────────────┬────────────┬────────────┬────────────┐${NC}"
-    local bot="${DIM}  └──────────────────┴────────────────────────────┴────────────┴────────────┴────────────┘${NC}"
-
-    echo -e "$top"
-    printf "  ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-16s${NC} ${DIM}│${NC}  ${BOLD}${BRIGHT_CYAN}%-24s${NC}  ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC}\n" \
-        "${L[menu_projects_col_id]}" \
-        "${L[menu_projects_col_name]}" \
-        "${L[menu_projects_col_db]}" \
-        "${L[menu_projects_col_upload]}" \
-        "${L[menu_projects_col_status]}"
-    echo -e "$sep"
+    # Собрать данные всех строк
+    local -a row_ids row_names row_db_labels row_db_colors row_upload_labels row_status_labels row_status_colors
+    local name db_type upload_methods status_label db_label upload_label project_enabled db_color status_color
 
     for id in "${ids[@]}"; do
-        local name db_type upload_methods status_label db_label upload_label project_enabled
-        local status_color db_color
         name="$(project_display_name "$id")"
         db_type="$(_project_cfg_value "$id" "CFG_DB_TYPE" "none")"
         upload_methods="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "telegram")"
@@ -5761,12 +5750,68 @@ _render_projects_overview() {
         esac
         upload_label="$(_upload_methods_text "$upload_methods")"
 
-        printf "  ${DIM}│${NC} %-16s ${DIM}│${NC}  ${BRIGHT_CYAN}%-24s${NC}  ${DIM}│${NC} ${db_color}%-10s${NC} ${DIM}│${NC} ${YELLOW}%-10s${NC} ${DIM}│${NC} ${status_color}%-10s${NC} ${DIM}│${NC}\n" \
-            "$(_trim_cell "$id" 16)" \
-            "$(_trim_cell "$name" 24)" \
-            "$(_trim_cell "$db_label" 10)" \
-            "$(_trim_cell "$upload_label" 10)" \
-            "$(_trim_cell "$status_label" 10)"
+        row_ids+=("$id")
+        row_names+=("$name")
+        row_db_labels+=("$db_label")
+        row_db_colors+=("$db_color")
+        row_upload_labels+=("$upload_label")
+        row_status_labels+=("$status_label")
+        row_status_colors+=("$status_color")
+    done
+
+    # Вычислить ширину каждого столбца = max(длина заголовка, макс длина контента)
+    local w_id w_name w_db w_upload w_status
+    w_id=${#L[menu_projects_col_id]}
+    w_name=${#L[menu_projects_col_name]}
+    w_db=${#L[menu_projects_col_db]}
+    w_upload=${#L[menu_projects_col_upload]}
+    w_status=${#L[menu_projects_col_status]}
+
+    local i len
+    for (( i=0; i < ${#row_ids[@]}; i++ )); do
+        len=${#row_ids[$i]};       (( len > w_id     )) && w_id=$len
+        len=${#row_names[$i]};     (( len > w_name   )) && w_name=$len
+        len=${#row_db_labels[$i]}; (( len > w_db     )) && w_db=$len
+        len=${#row_upload_labels[$i]}; (( len > w_upload )) && w_upload=$len
+        # статус содержит "● " (2 байта символ + пробел) — длина видимая = ${#label} - 2 (если UTF-8 ● = 3 байта)
+        len=${#row_status_labels[$i]}; (( len > w_status )) && w_status=$len
+    done
+
+    # Построить горизонтальные линии нужной длины
+    _hline() {
+        local w="$1" ch="$2" r=""
+        local j; for (( j=0; j<w; j++ )); do r+="$ch"; done
+        printf '%s' "$r"
+    }
+
+    local hid hname hdb hupload hstatus
+    hid="$(_hline $(( w_id + 2 )) "─")"
+    hname="$(_hline $(( w_name + 4 )) "─")"
+    hdb="$(_hline $(( w_db + 2 )) "─")"
+    hupload="$(_hline $(( w_upload + 2 )) "─")"
+    hstatus="$(_hline $(( w_status + 2 )) "─")"
+
+    local top sep bot
+    top="${DIM}  ┌${hid}┬${hname}┬${hdb}┬${hupload}┬${hstatus}┐${NC}"
+    sep="${DIM}  ├${hid}┼${hname}┼${hdb}┼${hupload}┼${hstatus}┤${NC}"
+    bot="${DIM}  └${hid}┴${hname}┴${hdb}┴${hupload}┴${hstatus}┘${NC}"
+
+    echo -e "$top"
+    printf "  ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-*s${NC} ${DIM}│${NC}  ${BOLD}${BRIGHT_CYAN}%-*s${NC}  ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-*s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-*s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-*s${NC} ${DIM}│${NC}\n" \
+        "$w_id"     "${L[menu_projects_col_id]}" \
+        "$w_name"   "${L[menu_projects_col_name]}" \
+        "$w_db"     "${L[menu_projects_col_db]}" \
+        "$w_upload" "${L[menu_projects_col_upload]}" \
+        "$w_status" "${L[menu_projects_col_status]}"
+    echo -e "$sep"
+
+    for (( i=0; i < ${#row_ids[@]}; i++ )); do
+        printf "  ${DIM}│${NC} %-*s ${DIM}│${NC}  ${BRIGHT_CYAN}%-*s${NC}  ${DIM}│${NC} ${row_db_colors[$i]}%-*s${NC} ${DIM}│${NC} ${YELLOW}%-*s${NC} ${DIM}│${NC} ${row_status_colors[$i]}%-*s${NC} ${DIM}│${NC}\n" \
+            "$w_id"     "${row_ids[$i]}" \
+            "$w_name"   "${row_names[$i]}" \
+            "$w_db"     "${row_db_labels[$i]}" \
+            "$w_upload" "${row_upload_labels[$i]}" \
+            "$w_status" "${row_status_labels[$i]}"
     done
     echo -e "$bot"
     echo ""
