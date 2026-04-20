@@ -2307,7 +2307,7 @@ tg_send_document() {
     [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && return 1
     [[ ! -f "$file" ]] && return 1
 
-    local curl_args=(-s -X POST "${TG_API_BASE}${CFG_BOT_TOKEN}/sendDocument"
+    local curl_args=(-sS --connect-timeout 15 --max-time "${TG_CURL_MAX_TIME:-180}" -X POST "${TG_API_BASE}${CFG_BOT_TOKEN}/sendDocument"
         -F "chat_id=${CFG_CHAT_ID}"
         -F "document=@${file}"
     )
@@ -2316,12 +2316,20 @@ tg_send_document() {
     [[ -n "$CFG_TG_PROXY" ]] && curl_args+=(--proxy "$CFG_TG_PROXY")
 
     local response
-    response=$(curl "${curl_args[@]}")
+    response=$(curl "${curl_args[@]}" 2>&1)
     local exit_code=$?
+
+    # Часто на серверах встречается подвисание IPv6 до таймаута.
+    # Если первая попытка упала по timeout/сетевой ошибке — пробуем IPv4.
+    if [[ $exit_code -ne 0 && ( $exit_code -eq 28 || $exit_code -eq 7 || $exit_code -eq 6 ) ]]; then
+        response=$(curl --ipv4 "${curl_args[@]}" 2>&1)
+        exit_code=$?
+    fi
 
     if [[ $exit_code -ne 0 ]]; then
         log_error "${L[tg_curl_err]} $exit_code"
         log_warn "${L[tg_check_net]}"
+        [[ -n "$response" ]] && log_error "${L[tg_resp_label]} $response"
         return 1
     fi
 
