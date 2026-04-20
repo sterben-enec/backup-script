@@ -62,6 +62,7 @@ DEFAULT_BACKUP_DIR="${BACKREST_BACKUP_DIR:-${BACKREST_HOME}/backups}"
 CONFIG_FILE="${CONFIG_FILE:-${DEFAULT_CONFIG_DIR}/backup.cfg}"
 PROJECTS_DIR="${PROJECTS_DIR:-$DEFAULT_PROJECTS_DIR}"
 CLI_PROJECT=""
+BACKUP_RUN_MODE="manual"  # manual | scheduled
 
 # ─────────────────────────────────────────────
 # Разобрать аргументы
@@ -79,6 +80,10 @@ while [[ $# -gt 0 ]]; do
             CLI_PROJECT="$2"
             shift 2
             ;;
+        --scheduled)
+            BACKUP_RUN_MODE="scheduled"
+            shift
+            ;;
         backup|restore)
             COMMAND="$1"
             shift
@@ -93,6 +98,7 @@ BACKREST - BACKUP & RESTORE v${SCRIPT_VERSION}
   $(basename "$0") restore                        Интерактивное восстановление
   $(basename "$0") --config /path/cfg             Указать конфиг-файл
   $(basename "$0") --project project_id backup    Запуск для конкретного проекта по ID
+  $(basename "$0") --project project_id --scheduled backup  Внутренний режим cron
 
 Переменные окружения:
   CONFIG_FILE            Путь к конфиг-файлу
@@ -108,6 +114,11 @@ EOF
             ;;
     esac
 done
+
+case "${BACKUP_RUN_MODE:-manual}" in
+    scheduled) BACKUP_RUN_MODE="scheduled" ;;
+    *) BACKUP_RUN_MODE="manual" ;;
+esac
 
 # Если передали --config, но PROJECTS_DIR явно не переопределяли — храним
 # профили рядом с выбранным конфигом.
@@ -700,6 +711,7 @@ L[bk_retention_none]="No local backups found for retention."
 L[bk_retention_funnel]="Funnel: hourly %s -> daily %s (daily hour %s)."
 L[bk_retention_kept]="Kept backups: hourly %s, daily %s."
 L[bk_retention_deleted]="Deleted local backups: %s"
+L[bk_retention_skip_manual]="Retention skipped for manual backup run."
 L[bk_mkdir_err]="Failed to create backup directory"
 
 # Telegram notifications
@@ -1370,6 +1382,7 @@ L[bk_retention_none]="Локальные бэкапы для ротации не
 L[bk_retention_funnel]="Воронка: ежечасные %s -> ежедневные %s (час ежедневного бэкапа %s)."
 L[bk_retention_kept]="Оставлено бэкапов: ежечасных %s, ежедневных %s."
 L[bk_retention_deleted]="Удалено локальных бэкапов: %s"
+L[bk_retention_skip_manual]="Политика хранения пропущена для ручного бэкапа."
 L[bk_mkdir_err]="Не удалось создать каталог бэкапов"
 
 # Telegram уведомления
@@ -1932,6 +1945,14 @@ _normalize_tg_send_mode() {
     case "$value" in
         weekly) echo "weekly" ;;
         *) echo "hourly" ;;
+    esac
+}
+
+_normalize_run_mode() {
+    local value="${1:-manual}"
+    case "$value" in
+        scheduled) echo "scheduled" ;;
+        *) echo "manual" ;;
     esac
 }
 
@@ -3766,8 +3787,14 @@ do_backup() {
         log_warn "Проект '${CFG_PROJECT_NAME}' не активен. Бэкап пропущен."
         return 1
     fi
+    local run_mode archive_prefix
+    run_mode="$(_normalize_run_mode "${BACKUP_RUN_MODE:-manual}")"
+    archive_prefix="${CFG_PROJECT_NAME}"
+    if [[ "$run_mode" != "scheduled" ]]; then
+        archive_prefix="${archive_prefix}_manual"
+    fi
     local ts; ts=$(timestamp)
-    local archive_name="${CFG_PROJECT_NAME}_${ts}.tar.gz"
+    local archive_name="${archive_prefix}_${ts}.tar.gz"
     local backup_dir="$CFG_BACKUP_DIR"
     local tmp_dir; tmp_dir=$(mktemp -d)
     # Гарантировать очистку временной директории при выходе или сигналах
@@ -3897,7 +3924,11 @@ EOF
     local send_status=$?
 
     # ── 6. Локальная ротация ─────────────────────
-    _apply_local_retention
+    if [[ "$run_mode" == "scheduled" ]]; then
+        _apply_local_retention
+    else
+        log_info "${L[bk_retention_skip_manual]}"
+    fi
 
     return $send_status
 }
@@ -4544,7 +4575,7 @@ _install_cron() {
     local cron_lines=""
     while IFS= read -r expr_line; do
         [[ -z "$expr_line" ]] && continue
-        cron_lines+="${expr_line} ${script_path} --project ${project_arg} backup ${marker}"$'\n'
+        cron_lines+="${expr_line} ${script_path} --project ${project_arg} --scheduled backup ${marker}"$'\n'
     done <<< "$cron_expr"
 
     log_step "${L[cron_setting]}"
