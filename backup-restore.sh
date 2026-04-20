@@ -1865,6 +1865,22 @@ _parse_backup_name_timestamp() {
     printf '%s\t%s\t%s\t%s\n' "$epoch" "$date_part" "$((10#$hour_part))" "$((10#$minute_part))"
 }
 
+_json_get_string_field() {
+    local json="$1"
+    local key="$2"
+    local value=""
+
+    if command -v jq &>/dev/null; then
+        value="$(printf '%s' "$json" | jq -r --arg key "$key" '.[$key] // empty' 2>/dev/null || true)"
+    fi
+
+    if [[ -z "$value" ]]; then
+        value="$(printf '%s' "$json" | sed -nE "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\\1/p" | head -n1 || true)"
+    fi
+
+    printf '%s' "$value"
+}
+
 ensure_runtime_dirs() {
     local cfg_dir
     cfg_dir="$(dirname "$CONFIG_FILE")"
@@ -2335,10 +2351,7 @@ setup_db_wizard() {
             [[ -z "$CFG_DB_NAME" ]] && CFG_DB_NAME="postgres"
             read -rsp "${L[cfg_enter_db_pass]}" CFG_DB_PASS; echo ""
             if [[ "$CFG_DB_ENGINE" == "postgres" ]]; then
-                read -rp "${L[cfg_db_pgver]}" CFG_DB_PGVER
-                if [[ -z "$CFG_DB_PGVER" ]]; then
-                    CFG_DB_PGVER="17"
-                fi
+                CFG_DB_PGVER="17"
             fi
             ;;
         2)
@@ -2356,10 +2369,7 @@ setup_db_wizard() {
             if [[ "$CFG_DB_ENGINE" == "postgres" ]]; then
                 read -rp "${L[cfg_db_ssl]}" CFG_DB_SSL
                 [[ -z "$CFG_DB_SSL" ]] && CFG_DB_SSL="prefer"
-                read -rp "${L[cfg_db_pgver]}" CFG_DB_PGVER
-                if [[ -z "$CFG_DB_PGVER" ]]; then
-                    CFG_DB_PGVER="17"
-                fi
+                CFG_DB_PGVER="17"
             fi
             ;;
         *)
@@ -2425,7 +2435,7 @@ setup_gd_config() {
     fi
 
     # Получить refresh token
-    local auth_url="https://accounts.google.com/o/oauth2/auth?client_id=${CFG_GD_CLIENT_ID}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=https://www.googleapis.com/auth/drive.file"
+    local auth_url="https://accounts.google.com/o/oauth2/v2/auth?client_id=${CFG_GD_CLIENT_ID}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=https://www.googleapis.com/auth/drive.file&access_type=offline&prompt=consent"
     echo ""
     echo "${L[cfg_gd_auth_needed]}"
     echo "${L[cfg_gd_open_url]}"
@@ -2434,12 +2444,21 @@ setup_gd_config() {
     read -rp "${L[cfg_gd_enter_code]}" gd_code
 
     echo "${L[cfg_gd_getting]}"
-    local response
-    response=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
-        -d "code=${gd_code}&client_id=${CFG_GD_CLIENT_ID}&client_secret=${CFG_GD_CLIENT_SECRET}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&grant_type=authorization_code")
-    CFG_GD_REFRESH_TOKEN=$(echo "$response" | grep -o '"refresh_token":"[^"]*"' | cut -d'"' -f4)
+    local response oauth_error oauth_desc
+    response="$(curl -sS -X POST "https://oauth2.googleapis.com/token" \
+        --data-urlencode "code=${gd_code}" \
+        --data-urlencode "client_id=${CFG_GD_CLIENT_ID}" \
+        --data-urlencode "client_secret=${CFG_GD_CLIENT_SECRET}" \
+        --data-urlencode "redirect_uri=urn:ietf:wg:oauth:2.0:oob" \
+        --data-urlencode "grant_type=authorization_code" 2>/dev/null || true)"
+    CFG_GD_REFRESH_TOKEN="$(_json_get_string_field "$response" "refresh_token")"
+    oauth_error="$(_json_get_string_field "$response" "error")"
+    oauth_desc="$(_json_get_string_field "$response" "error_description")"
 
     if [[ -z "$CFG_GD_REFRESH_TOKEN" ]]; then
+        if [[ -n "$oauth_error" || -n "$oauth_desc" ]]; then
+            log_warn "Google OAuth error: ${oauth_error:-unknown}${oauth_desc:+ (${oauth_desc})}"
+        fi
         log_error "${L[cfg_gd_fail]}"
         log_warn "${L[cfg_gd_incomplete2]}"
         CFG_UPLOAD_METHOD="telegram"
@@ -2837,16 +2856,22 @@ _gd_access_token() {
     fi
 
     local response
-    response=$(curl -s -X POST "$GD_API_TOKEN" \
-        -d "client_id=${CFG_GD_CLIENT_ID}" \
-        -d "client_secret=${CFG_GD_CLIENT_SECRET}" \
-        -d "refresh_token=${CFG_GD_REFRESH_TOKEN}" \
-        -d "grant_type=refresh_token")
+    response="$(curl -sS -X POST "$GD_API_TOKEN" \
+        --data-urlencode "client_id=${CFG_GD_CLIENT_ID}" \
+        --data-urlencode "client_secret=${CFG_GD_CLIENT_SECRET}" \
+        --data-urlencode "refresh_token=${CFG_GD_REFRESH_TOKEN}" \
+        --data-urlencode "grant_type=refresh_token" 2>/dev/null || true)"
 
     local token
-    token=$(echo "$response" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
+    token="$(_json_get_string_field "$response" "access_token")"
     if [[ -z "$token" ]]; then
         log_error "${L[gd_token_err]}"
+        local oauth_error oauth_desc
+        oauth_error="$(_json_get_string_field "$response" "error")"
+        oauth_desc="$(_json_get_string_field "$response" "error_description")"
+        if [[ -n "$oauth_error" || -n "$oauth_desc" ]]; then
+            log_warn "Google OAuth error: ${oauth_error:-unknown}${oauth_desc:+ (${oauth_desc})}"
+        fi
         return 1
     fi
     echo "$token"
