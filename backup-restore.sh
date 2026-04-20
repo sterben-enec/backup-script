@@ -128,7 +128,7 @@ if [[ -t 1 ]]; then
     BLUE=$'\033[0;34m'
     CYAN=$'\033[0;36m'
     MAGENTA=$'\033[0;35m'
-    WHITE=$'\033[0;37m'
+    WHITE=$'\033[1;37m'
     BRIGHT_GREEN=$'\033[1;32m'
     BRIGHT_CYAN=$'\033[1;36m'
     BRIGHT_YELLOW=$'\033[1;33m'
@@ -5597,12 +5597,12 @@ _render_projects_overview() {
         return
     fi
 
-    local sep="${DIM}  ┼──────────────────┼──────────────────────────┼────────────┼────────────┼────────────┤${NC}"
-    local top="${DIM}  ┌──────────────────┬──────────────────────────┬────────────┬────────────┬────────────┐${NC}"
-    local bot="${DIM}  └──────────────────┴──────────────────────────┴────────────┴────────────┴────────────┘${NC}"
+    local sep="${DIM}  ├──────────────────┼────────────────────────────┼────────────┼────────────┼────────────┤${NC}"
+    local top="${DIM}  ┌──────────────────┬────────────────────────────┬────────────┬────────────┬────────────┐${NC}"
+    local bot="${DIM}  └──────────────────┴────────────────────────────┴────────────┴────────────┴────────────┘${NC}"
 
     echo -e "$top"
-    printf "  ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-16s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-24s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC}\n" \
+    printf "  ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-16s${NC} ${DIM}│${NC}  ${BOLD}${BRIGHT_CYAN}%-24s${NC}  ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC} ${BOLD}${BRIGHT_CYAN}%-10s${NC} ${DIM}│${NC}\n" \
         "${L[menu_projects_col_id]}" \
         "${L[menu_projects_col_name]}" \
         "${L[menu_projects_col_db]}" \
@@ -5634,7 +5634,7 @@ _render_projects_overview() {
         esac
         upload_label="$(_upload_methods_text "$upload_methods")"
 
-        printf "  ${DIM}│${NC} %-16s ${DIM}│${NC} ${BRIGHT_CYAN}%-24s${NC} ${DIM}│${NC} ${db_color}%-10s${NC} ${DIM}│${NC} ${YELLOW}%-10s${NC} ${DIM}│${NC} ${status_color}%-10s${NC} ${DIM}│${NC}\n" \
+        printf "  ${DIM}│${NC} %-16s ${DIM}│${NC}  ${BRIGHT_CYAN}%-24s${NC}  ${DIM}│${NC} ${db_color}%-10s${NC} ${DIM}│${NC} ${YELLOW}%-10s${NC} ${DIM}│${NC} ${status_color}%-10s${NC} ${DIM}│${NC}\n" \
             "$(_trim_cell "$id" 16)" \
             "$(_trim_cell "$name" 24)" \
             "$(_trim_cell "$db_label" 10)" \
