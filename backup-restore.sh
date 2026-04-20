@@ -5272,7 +5272,7 @@ _settings_retention() {
 
     while true; do
         clear
-        _section_header "🔄" "${L[st_retention_title]}"
+        _section_header "[R]" "${L[st_retention_title]}"
         echo "  ${L[st_retention_funnel]}"
         echo "    ${L[st_retention_hourly]} $(_period_label "$CFG_RETENTION_HOURLY_PERIOD")"
         echo "    ${L[st_retention_daily]}  $(_period_label "$CFG_RETENTION_DAILY_PERIOD")"
@@ -5748,7 +5748,7 @@ _menu_choose_upload_method() {
     while true; do
         clear
         echo ""
-        _section_header "📤" "${L[ul_title]}"
+        _section_header "[>]" "${L[ul_title]}"
         echo -e "  ${DIM}${L[ul_current]}${NC} ${BRIGHT_YELLOW}$(_upload_methods_text "$CFG_UPLOAD_METHOD")${NC}"
         echo -e "  ${DIM}${L[ul_multi_help]}${NC}"
         echo ""
