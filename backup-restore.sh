@@ -1804,6 +1804,7 @@ CFG_BOT_TOKEN=""
 CFG_CHAT_ID=""
 CFG_THREAD_ID=""
 CFG_TG_PROXY=""
+TG_SUPPRESS_SUCCESS_TEXT="false"
 
 # Активный профиль проекта
 CFG_ACTIVE_PROJECT=""
@@ -2803,42 +2804,89 @@ tg_send_document() {
     return 0
 }
 
-# Уведомление об успешном бэкапе (текст)
-tg_notify_backup_success() {
-    local file="$1"
-    local method="${2:-telegram}"
+_methods_csv_from_array() {
+    local IFS=","
+    echo "$*"
+}
 
-    local size; size=$(format_size "$file")
-    local date_str; date_str=$(date "+%Y-%m-%d %H:%M:%S")
+_tg_backup_compact_text() {
+    local project_name="$1"
+    local size="$2"
+    local ok_csv="$3"
+    local fail_csv="$4"
+    local note="${5:-}"
 
-    local db_info
-    case "$CFG_DB_TYPE" in
-        docker)   db_info="${L[tg_db_docker]} (${CFG_DB_ENGINE}: ${CFG_DB_NAME})" ;;
-        external) db_info="${L[tg_db_ext]} (${CFG_DB_ENGINE}@${CFG_DB_HOST})" ;;
-        *)        db_info="${L[tg_db_none]}" ;;
-    esac
+    local ok_text fail_text text
+    if [[ -n "$ok_csv" ]]; then
+        ok_text="$(_upload_methods_text "$ok_csv")"
+    else
+        if [[ "$CFG_LANG" == "ru" ]]; then
+            ok_text="Локально"
+        else
+            ok_text="Local only"
+        fi
+    fi
+    fail_text="$(_upload_methods_text "$fail_csv")"
 
-    local title
-    case "$method" in
-        s3)           title="${L[tg_bk_s3]}" ;;
-        google_drive) title="${L[tg_bk_gd]}" ;;
-        *)            title="${L[tg_bk_success]}" ;;
-    esac
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        text="✅ <b>Бэкап</b> <code>${project_name}</code> • <code>${size}</code>
+✅ ${ok_text}"
+        [[ -n "$fail_csv" ]] && text+="
+⚠️ ${fail_text}"
+    else
+        text="✅ <b>Backup</b> <code>${project_name}</code> • <code>${size}</code>
+✅ ${ok_text}"
+        [[ -n "$fail_csv" ]] && text+="
+⚠️ ${fail_text}"
+    fi
+    [[ -n "$note" ]] && text+="
+${note}"
+    printf '%s' "$text"
+}
 
+_tg_backup_compact_caption() {
+    local size="$1"
+    local ok_csv="$2"
+    local fail_csv="$3"
+    local note="${4:-}"
+    _tg_backup_compact_text "${CFG_PROJECT_NAME}" "$size" "$ok_csv" "$fail_csv" "$note"
+}
+
+tg_notify_backup_compact() {
+    local project_name="$1"
+    local size="$2"
+    local ok_csv="$3"
+    local fail_csv="$4"
+    local note="${5:-}"
     local msg
-    msg="✅ <b>${title}</b>
+    msg="$(_tg_backup_compact_text "$project_name" "$size" "$ok_csv" "$fail_csv" "$note")"
+    tg_send_message "$msg"
+}
 
-${L[tg_project]} <code>${CFG_PROJECT_NAME}</code>
-${L[tg_size]} <code>${size}</code>
-${L[tg_date]} <code>${date_str}</code>
-${L[tg_db]} ${db_info}"
+tg_notify_backup_batch_summary() {
+    local ok_projects="$1"
+    local fail_projects="$2"
+    local msg
+    [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && return 0
 
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        msg="📦 <b>Бэкап проектов</b>
+✅ ${ok_projects:-—}"
+        [[ -n "$fail_projects" ]] && msg+="
+❌ ${fail_projects}"
+    else
+        msg="📦 <b>Projects backup</b>
+✅ ${ok_projects:-—}"
+        [[ -n "$fail_projects" ]] && msg+="
+❌ ${fail_projects}"
+    fi
     tg_send_message "$msg"
 }
 
 # Уведомление об ошибке
 tg_notify_error() {
     local msg="$1"
+    [[ "${TG_SUPPRESS_SUCCESS_TEXT:-false}" == "true" ]] && return 0
     [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && return 0
     tg_send_message "❌ <b>${CFG_PROJECT_NAME}</b>: ${msg}"
 }
@@ -3694,8 +3742,13 @@ _send_backup() {
     local size; size=$(format_size "$file")
     local methods_csv method
     local -a methods=()
+    local -a ok_methods=()
+    local -a fail_methods=()
     local any_success="false"
     local had_failure="false"
+    local tg_selected="false"
+    local tg_sent="false"
+    local tg_note=""
     log_step "${L[bk_sending]} ($size)"
 
     methods_csv="$(_normalize_upload_methods "${CFG_UPLOAD_METHOD:-telegram}")"
@@ -3704,39 +3757,71 @@ _send_backup() {
     IFS=',' read -r -a methods <<< "$methods_csv"
 
     for method in "${methods[@]}"; do
+        [[ "$method" == "telegram" ]] && tg_selected="true"
+    done
+
+    # Сначала внешние хранилища, Telegram (если выбран) отправляем в конце
+    # с короткой сводной подписью в одном сообщении.
+    for method in "${methods[@]}"; do
+        [[ "$method" == "telegram" ]] && continue
         case "$method" in
-            telegram)
-                if _send_via_telegram "$file" "$size"; then
-                    any_success="true"
-                else
-                    had_failure="true"
-                fi
-                ;;
             s3)
                 if _send_via_s3 "$file"; then
                     any_success="true"
+                    ok_methods+=("s3")
                 else
                     had_failure="true"
+                    fail_methods+=("s3")
                 fi
                 ;;
             google_drive)
                 if _send_via_gd "$file"; then
                     any_success="true"
+                    ok_methods+=("google_drive")
                 else
                     had_failure="true"
+                    fail_methods+=("google_drive")
                 fi
                 ;;
             *)
                 log_error "${L[bk_unknown_method]} ${method}"
                 had_failure="true"
+                fail_methods+=("$method")
                 ;;
         esac
     done
+
+    if [[ "$tg_selected" == "true" ]]; then
+        local caption_ok_csv caption_fail_csv caption
+        caption_ok_csv="$(_methods_csv_from_array "${ok_methods[@]}" "telegram")"
+        caption_fail_csv="$(_methods_csv_from_array "${fail_methods[@]}")"
+        caption="$(_tg_backup_compact_caption "$size" "$caption_ok_csv" "$caption_fail_csv")"
+        if _send_via_telegram "$file" "$size" "$caption"; then
+            if [[ "${TG_LAST_TG_UPLOAD_STATUS:-sent}" == "sent" ]]; then
+                any_success="true"
+                ok_methods+=("telegram")
+                tg_sent="true"
+            elif [[ "${TG_LAST_TG_UPLOAD_STATUS:-}" == "limit" ]]; then
+                any_success="true"
+                printf -v tg_note "${L[bk_tg_big_notify]}" "$size"
+            fi
+        else
+            had_failure="true"
+            fail_methods+=("telegram")
+        fi
+    fi
 
     if [[ "$any_success" != "true" ]]; then
         log_warn "${L[bk_not_sent]}"
         log_info "${L[bk_saved_local]} $file"
         return 1
+    fi
+
+    if [[ "${TG_SUPPRESS_SUCCESS_TEXT:-false}" != "true" && "$tg_sent" != "true" ]]; then
+        local ok_csv fail_csv
+        ok_csv="$(_methods_csv_from_array "${ok_methods[@]}")"
+        fail_csv="$(_methods_csv_from_array "${fail_methods[@]}")"
+        tg_notify_backup_compact "$CFG_PROJECT_NAME" "$size" "$ok_csv" "$fail_csv" "$tg_note" || true
     fi
 
     [[ "$had_failure" == "true" ]] && return 1 || return 0
@@ -3745,6 +3830,8 @@ _send_backup() {
 _send_via_telegram() {
     local file="$1"
     local size="$2"
+    local caption="${3:-}"
+    TG_LAST_TG_UPLOAD_STATUS="error"
 
     # Проверить лимит Telegram (50 MB)
     local size_bytes; size_bytes=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
@@ -3753,16 +3840,18 @@ _send_via_telegram() {
     if (( size_bytes > limit )); then
         printf "${L[bk_tg_big]}\n" "$size"
         log_info "${L[bk_saved_local]} $file"
-        tg_notify_backup_success "$file" "telegram"
         printf "${L[bk_tg_big_notify]}\n" "$size"
+        TG_LAST_TG_UPLOAD_STATUS="limit"
         return 0
     fi
 
-    if tg_send_document "$file" "💾 Backup: ${CFG_PROJECT_NAME} | ${size}"; then
+    if tg_send_document "$file" "$caption"; then
         log_info "${L[bk_tg_ok]}"
+        TG_LAST_TG_UPLOAD_STATUS="sent"
     else
         log_error "${L[bk_tg_err]}"
         log_info "${L[bk_saved_local]} $file"
+        TG_LAST_TG_UPLOAD_STATUS="error"
         return 1
     fi
 }
@@ -3771,15 +3860,9 @@ _send_via_s3() {
     local file="$1"
     if s3_upload "$file"; then
         log_info "${L[bk_s3_ok]}"
-        if tg_notify_backup_success "$file" "s3"; then
-            log_info "${L[bk_s3_notify_ok]}"
-        else
-            log_warn "${L[bk_s3_notify_fail]}"
-        fi
         s3_cleanup
     else
         log_error "${L[bk_s3_err]}"
-        tg_notify_error "${L[bk_s3_err_tg]}"
         return 1
     fi
 }
@@ -3788,14 +3871,8 @@ _send_via_gd() {
     local file="$1"
     if gd_upload "$file"; then
         log_info "${L[bk_gd_ok]}"
-        if tg_notify_backup_success "$file" "google_drive"; then
-            log_info "${L[bk_gd_notify_ok]}"
-        else
-            log_warn "${L[bk_gd_notify_fail]}"
-        fi
     else
         log_error "${L[bk_gd_err]}"
-        tg_notify_error "${L[bk_gd_err_tg]}"
         return 1
     fi
 }
@@ -5954,6 +6031,8 @@ _manual_backup_with_project_select() {
 
 _manual_backup_all_active() {
     local -a ids=()
+    local -a ok_projects=()
+    local -a fail_projects=()
     local id
     while IFS= read -r id; do
         [[ -z "$id" ]] && continue
@@ -5968,21 +6047,42 @@ _manual_backup_all_active() {
     fi
 
     local ok_count=0 fail_count=0
+    local prev_tg_suppress="${TG_SUPPRESS_SUCCESS_TEXT:-false}"
+    TG_SUPPRESS_SUCCESS_TEXT="true"
+
     for id in "${ids[@]}"; do
+        local project_label
+        project_label="$(project_display_name "$id") (#${id})"
         log_step "${L[bk_project]} $(project_display_name "$id") (${id})"
         if _run_with_project_context "$id" do_backup; then
             ((ok_count++))
+            ok_projects+=("$project_label")
         else
             ((fail_count++))
+            fail_projects+=("$project_label")
         fi
         echo ""
     done
+
+    TG_SUPPRESS_SUCCESS_TEXT="$prev_tg_suppress"
 
     if [[ "$CFG_LANG" == "ru" ]]; then
         log_info "Завершено: ${ok_count}, с ошибками: ${fail_count}"
     else
         log_info "Done: ${ok_count}, failed: ${fail_count}"
     fi
+
+    local ok_line="" fail_line=""
+    if (( ${#ok_projects[@]} > 0 )); then
+        local IFS=", "
+        ok_line="${ok_projects[*]}"
+    fi
+    if (( ${#fail_projects[@]} > 0 )); then
+        local IFS=", "
+        fail_line="${fail_projects[*]}"
+    fi
+    tg_notify_backup_batch_summary "$ok_line" "$fail_line" || true
+
     press_enter_back
 }
 
