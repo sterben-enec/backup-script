@@ -721,6 +721,7 @@ L[bk_sender_dir_missing]="Sender source directory is missing:"
 L[bk_sender_no_files]="No archive files found in sender directory:"
 L[bk_sender_selected]="Selected latest archive:"
 L[bk_sender_no_new]="No new archive to send. Last sent remains:"
+L[bk_sender_no_new_notify]="No new archive found in sender directory."
 
 # Telegram notifications
 L[tg_bk_success]="Backup successfully created"
@@ -1419,6 +1420,7 @@ L[bk_sender_dir_missing]="Не задана директория sender:"
 L[bk_sender_no_files]="В директории sender не найдено архивов:"
 L[bk_sender_selected]="Выбран свежий архив:"
 L[bk_sender_no_new]="Нового архива нет. Последний отправленный:"
+L[bk_sender_no_new_notify]="В директории sender нет нового архива."
 
 # Telegram уведомления
 L[tg_bk_success]="Бэкап успешно создан"
@@ -3149,6 +3151,28 @@ ${L[tg_date]} <code>${safe_now}</code>
     tg_send_message "$msg"
 }
 
+tg_notify_sender_no_new() {
+    local file_name="$1"
+    local safe_project safe_file safe_now now msg
+    [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && return 0
+    safe_project="$(_tg_escape_html "${CFG_PROJECT_NAME:-default}")"
+    safe_file="$(_tg_escape_html "$file_name")"
+    now="$(_tg_now)"
+    safe_now="$(_tg_escape_html "$now")"
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        msg="ℹ️ <b>${L[bk_sender_no_new_notify]}</b>
+${L[tg_project]} <code>${safe_project}</code>
+${L[tg_date]} <code>${safe_now}</code>
+Файл: <code>${safe_file}</code>"
+    else
+        msg="ℹ️ <b>${L[bk_sender_no_new_notify]}</b>
+${L[tg_project]} <code>${safe_project}</code>
+${L[tg_date]} <code>${safe_now}</code>
+File: <code>${safe_file}</code>"
+    fi
+    tg_send_message "$msg"
+}
+
 # Уведомление об ошибке
 tg_notify_error() {
     local msg="$1"
@@ -4163,6 +4187,7 @@ _do_sender_backup() {
     if [[ -n "$last_signature" && "$signature" == "$last_signature" ]]; then
         log_info "${L[bk_sender_no_new]} $(basename "$latest_archive")"
         if [[ "$run_mode" == "scheduled" ]]; then
+            tg_notify_sender_no_new "$(basename "$latest_archive")" || true
             _apply_sender_source_retention
         fi
         return 0
