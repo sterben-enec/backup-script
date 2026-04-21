@@ -50,9 +50,9 @@ SCRIPT_AUTHOR="${SCRIPT_AUTHOR:-sterben-enec}"
 
 # Рабочие директории по умолчанию (самодостаточный режим)
 if [[ $EUID -eq 0 ]]; then
-    DEFAULT_BACKREST_HOME="/var/lib/universal-backup"
+    DEFAULT_BACKREST_HOME="/var/lib/backrest"
 else
-    DEFAULT_BACKREST_HOME="${HOME}/.local/share/universal-backup"
+    DEFAULT_BACKREST_HOME="${HOME}/.local/share/backrest"
 fi
 BACKREST_HOME="${BACKREST_HOME:-$DEFAULT_BACKREST_HOME}"
 DEFAULT_CONFIG_DIR="${BACKREST_CONFIG_DIR:-${BACKREST_HOME}/config}"
@@ -1981,7 +1981,6 @@ CFG_S3_SECRET_KEY=""
 CFG_S3_PREFIX=""
 CFG_STORAGE_KEEP_WEEKLY="true"
 CFG_STORAGE_KEEP_MONTHLY="true"
-CFG_S3_RETENTION_DAYS="30" # legacy, сохраняется для обратной совместимости
 
 # Google Drive credentials (глобально)
 CFG_GLOBAL_GD_CLIENT_ID=""
@@ -2017,7 +2016,7 @@ CFG_SCHEDULE_DAILY_ENABLED="false"
 CFG_RETENTION_HOURLY_PERIOD="day" # day | week | month
 CFG_RETENTION_DAILY_PERIOD="month" # day | week | month
 CFG_RETENTION_DAILY_HOUR="3"      # 1-24 (24 == 00:00)
-CFG_RETENTION_DAYS="30"           # legacy, сохраняется для обратной совместимости
+CFG_RETENTION_DAYS="30"
 CFG_TELEGRAM_SEND_MODE="weekly"   # hourly | weekly
 CFG_PROJECT_ENABLED="true"
 CFG_USE_GLOBAL_UPLOAD_METHOD="false"
@@ -2081,39 +2080,11 @@ _normalize_retention_period() {
     esac
 }
 
-_period_to_days() {
-    case "$1" in
-        day) echo "1" ;;
-        week) echo "7" ;;
-        *) echo "30" ;;
-    esac
-}
-
-_period_from_legacy_days() {
-    local days="${1:-30}"
-    if ! [[ "$days" =~ ^[0-9]+$ ]]; then
-        echo "month"
-        return
-    fi
-    if (( days <= 1 )); then
-        echo "day"
-    elif (( days <= 7 )); then
-        echo "week"
-    else
-        echo "month"
-    fi
-}
-
 _normalize_daily_hour() {
     local value="${1:-}"
     local fallback="${2:-3}"
     if ! [[ "$value" =~ ^[0-9]+$ ]]; then
         echo "$fallback"
-        return
-    fi
-    # Обратная совместимость: старое значение "0" трактуем как "24" (полночь).
-    if (( 10#$value == 0 )); then
-        echo "24"
         return
     fi
     if (( 10#$value < 1 || 10#$value > 24 )); then
@@ -2398,7 +2369,6 @@ reset_project_profile_defaults() {
     CFG_S3_PREFIX=""
     CFG_STORAGE_KEEP_WEEKLY="true"
     CFG_STORAGE_KEEP_MONTHLY="true"
-    CFG_S3_RETENTION_DAYS="30"
     CFG_GD_FOLDER_ID=""
 
     CFG_DB_TYPE="none"
@@ -2459,71 +2429,6 @@ resolve_project_id() {
     _is_project_id_valid "$selector" || return 1
     [[ -f "$(_project_file_path "$selector")" ]] || return 1
     echo "$selector"
-}
-
-_migrate_project_ids_to_numeric() {
-    [[ -d "$PROJECTS_DIR" ]] || return 0
-
-    local -a ids=()
-    local -A used=()
-    local -A migrated=()
-    local id id_num next_id max_id=0 target
-    local changed="false"
-
-    while IFS= read -r id; do
-        [[ -n "$id" ]] && ids+=("$id")
-    done < <(list_project_ids)
-
-    for id in "${ids[@]}"; do
-        _is_project_id_valid "$id" || continue
-        id_num=$((10#$id))
-        used["$id_num"]=1
-        (( id_num > max_id )) && max_id="$id_num"
-    done
-
-    next_id=$((max_id + 1))
-    (( next_id < 1 )) && next_id=1
-
-    for id in "${ids[@]}"; do
-        _is_project_id_valid "$id" && continue
-        while [[ -n "${used[$next_id]+x}" ]]; do
-            ((next_id++))
-        done
-        target="$next_id"
-        if mv -f "$(_project_file_path "$id")" "$(_project_file_path "$target")"; then
-            migrated["$id"]="$target"
-            used["$target"]=1
-            changed="true"
-        fi
-        ((next_id++))
-    done
-
-    if [[ -n "${CFG_ACTIVE_PROJECT:-}" && -n "${migrated[$CFG_ACTIVE_PROJECT]+x}" ]]; then
-        CFG_ACTIVE_PROJECT="${migrated[$CFG_ACTIVE_PROJECT]}"
-        CFG_PROJECT_ID="$CFG_ACTIVE_PROJECT"
-        changed="true"
-    fi
-
-    if (( ${#migrated[@]} > 0 )) && command -v crontab >/dev/null 2>&1; then
-        local cron_now cron_new old_id new_id
-        cron_now="$(crontab -l 2>/dev/null || true)"
-        if [[ -n "$cron_now" ]]; then
-            cron_new="$cron_now"
-            for old_id in "${!migrated[@]}"; do
-                new_id="${migrated[$old_id]}"
-                cron_new="${cron_new//--project ${old_id} /--project ${new_id} }"
-                cron_new="${cron_new// # backrest: ${old_id}/ # backrest: ${new_id}}"
-                cron_new="${cron_new// # universal-backup: ${old_id}/ # backrest: ${new_id}}"
-            done
-            if [[ "$cron_new" != "$cron_now" ]]; then
-                printf '%s\n' "$cron_new" | crontab - 2>/dev/null || true
-            fi
-        fi
-    fi
-
-    if [[ "$changed" == "true" ]]; then
-        save_global_config "$CONFIG_FILE" || true
-    fi
 }
 
 activate_project_by_selector() {
@@ -2588,8 +2493,6 @@ save_global_config() {
 save_project_config() {
     local project_id="$1"
     local project_file
-    local retention_days_legacy
-    local s3_retention_days_legacy
     project_file="$(_project_file_path "$project_id")"
     mkdir -p "$PROJECTS_DIR" || return 1
 
@@ -2600,14 +2503,7 @@ save_project_config() {
     CFG_SCHEDULE_DAILY_ENABLED="$(_normalize_bool "${CFG_SCHEDULE_DAILY_ENABLED:-false}" "false")"
     CFG_TELEGRAM_SEND_MODE="$(_normalize_tg_send_mode "${CFG_TELEGRAM_SEND_MODE:-weekly}")"
 
-    retention_days_legacy="$(_normalize_positive_int "${CFG_RETENTION_DAYS:-$(_period_to_days "${CFG_RETENTION_DAILY_PERIOD:-month}")}" "30")"
-    if [[ "${CFG_STORAGE_KEEP_MONTHLY:-true}" == "true" ]]; then
-        s3_retention_days_legacy="30"
-    elif [[ "${CFG_STORAGE_KEEP_WEEKLY:-true}" == "true" ]]; then
-        s3_retention_days_legacy="7"
-    else
-        s3_retention_days_legacy="1"
-    fi
+    CFG_RETENTION_DAYS="$(_normalize_positive_int "${CFG_RETENTION_DAYS:-30}" "30")"
 
     {
         printf '# Backrest — project profile\n'
@@ -2619,8 +2515,7 @@ save_project_config() {
         printf '# S3\n'
         printf 'CFG_S3_PREFIX=%s\n'          "$(printf '%q' "$CFG_S3_PREFIX")"
         printf 'CFG_STORAGE_KEEP_WEEKLY=%s\n' "$CFG_STORAGE_KEEP_WEEKLY"
-        printf 'CFG_STORAGE_KEEP_MONTHLY=%s\n' "$CFG_STORAGE_KEEP_MONTHLY"
-        printf 'CFG_S3_RETENTION_DAYS=%s\n\n' "$s3_retention_days_legacy"
+        printf 'CFG_STORAGE_KEEP_MONTHLY=%s\n\n' "$CFG_STORAGE_KEEP_MONTHLY"
 
         printf '# Google Drive\n'
         printf 'CFG_GD_FOLDER_ID=%s\n\n'     "$(printf '%q' "$CFG_GD_FOLDER_ID")"
@@ -2648,7 +2543,7 @@ save_project_config() {
         printf 'CFG_RETENTION_HOURLY_PERIOD=%s\n' "$CFG_RETENTION_HOURLY_PERIOD"
         printf 'CFG_RETENTION_DAILY_PERIOD=%s\n' "$CFG_RETENTION_DAILY_PERIOD"
         printf 'CFG_RETENTION_DAILY_HOUR=%s\n' "$CFG_RETENTION_DAILY_HOUR"
-        printf 'CFG_RETENTION_DAYS=%s\n'     "$retention_days_legacy"
+        printf 'CFG_RETENTION_DAYS=%s\n'     "$CFG_RETENTION_DAYS"
         printf 'CFG_TELEGRAM_SEND_MODE=%s\n' "$CFG_TELEGRAM_SEND_MODE"
         printf 'CFG_PROJECT_ENABLED=%s\n'    "$CFG_PROJECT_ENABLED"
         printf 'CFG_USE_GLOBAL_UPLOAD_METHOD=%s\n' "$CFG_USE_GLOBAL_UPLOAD_METHOD"
@@ -2662,7 +2557,6 @@ save_project_config() {
 
 load_project_config() {
     local project_id="$1"
-    local legacy_local_days legacy_s3_days
     [[ "$project_id" == *".."* || "$project_id" == *"/"* ]] && return 1
     local project_file
     project_file="$(_project_file_path "$project_id")"
@@ -2684,47 +2578,16 @@ load_project_config() {
     CFG_TELEGRAM_SEND_MODE="$(_normalize_tg_send_mode "${CFG_TELEGRAM_SEND_MODE:-weekly}")"
     _sync_runtime_delivery_credentials
 
-    legacy_local_days="${CFG_RETENTION_DAYS:-30}"
     CFG_RETENTION_HOURLY_PERIOD="$(_normalize_retention_period "${CFG_RETENTION_HOURLY_PERIOD:-day}" "day")"
-    CFG_RETENTION_DAILY_PERIOD="$(_normalize_retention_period "${CFG_RETENTION_DAILY_PERIOD:-$(_period_from_legacy_days "$legacy_local_days")}" "$(_period_from_legacy_days "$legacy_local_days")")"
+    CFG_RETENTION_DAILY_PERIOD="$(_normalize_retention_period "${CFG_RETENTION_DAILY_PERIOD:-month}" "month")"
     CFG_RETENTION_DAILY_HOUR="$(_normalize_daily_hour "${CFG_RETENTION_DAILY_HOUR:-3}" "3")"
-    CFG_RETENTION_DAYS="$(_normalize_positive_int "${CFG_RETENTION_DAYS:-$(_period_to_days "$CFG_RETENTION_DAILY_PERIOD")}" "30")"
-
-    legacy_s3_days="${CFG_S3_RETENTION_DAYS:-30}"
-    if [[ -z "${CFG_STORAGE_KEEP_WEEKLY:-}" && -z "${CFG_STORAGE_KEEP_MONTHLY:-}" ]]; then
-        if [[ "$legacy_s3_days" =~ ^[0-9]+$ ]] && (( legacy_s3_days <= 7 )); then
-            CFG_STORAGE_KEEP_WEEKLY="true"
-            CFG_STORAGE_KEEP_MONTHLY="false"
-        else
-            CFG_STORAGE_KEEP_WEEKLY="true"
-            CFG_STORAGE_KEEP_MONTHLY="true"
-        fi
-    fi
+    CFG_RETENTION_DAYS="$(_normalize_positive_int "${CFG_RETENTION_DAYS:-30}" "30")"
     CFG_STORAGE_KEEP_WEEKLY="$(_normalize_bool "${CFG_STORAGE_KEEP_WEEKLY:-true}" "true")"
     CFG_STORAGE_KEEP_MONTHLY="$(_normalize_bool "${CFG_STORAGE_KEEP_MONTHLY:-true}" "true")"
-    if [[ "$CFG_STORAGE_KEEP_MONTHLY" == "true" ]]; then
-        CFG_S3_RETENTION_DAYS="30"
-    elif [[ "$CFG_STORAGE_KEEP_WEEKLY" == "true" ]]; then
-        CFG_S3_RETENTION_DAYS="7"
-    else
-        CFG_S3_RETENTION_DAYS="${CFG_RETENTION_DAYS:-30}"
-    fi
 
     CFG_PROJECT_ID="$project_id"
     CFG_ACTIVE_PROJECT="$project_id"
     return 0
-}
-
-_migrate_legacy_single_project() {
-    [[ -n "${CFG_ACTIVE_PROJECT:-}" ]] && return 0
-    if [[ -n "${CFG_PROJECT_NAME:-}" || -n "${CFG_PROJECT_DIR:-}" || "$CFG_DB_TYPE" != "none" ]]; then
-        local id
-        id="$(_project_next_id)"
-        CFG_PROJECT_ID="$id"
-        CFG_ACTIVE_PROJECT="$id"
-        save_project_config "$id"
-        save_global_config "$CONFIG_FILE"
-    fi
 }
 
 # ─────────────────────────────────────────────
@@ -2763,9 +2626,6 @@ load_config() {
     # Позволяем фиксировать PROJECTS_DIR в конфиге, но если нет — оставляем текущий.
     PROJECTS_DIR="${PROJECTS_DIR:-$(dirname "$CONFIG_FILE")/projects}"
     ensure_runtime_dirs
-
-    _migrate_legacy_single_project
-    _migrate_project_ids_to_numeric
 
     if [[ -n "${CFG_ACTIVE_PROJECT:-}" ]]; then
         if ! load_project_config "$CFG_ACTIVE_PROJECT"; then
@@ -4900,9 +4760,9 @@ _cron_line_matches_project() {
     local marker selector
     local project_id_key project_name_key marker_key selector_key
 
-    [[ "$line" == *"# backrest:"* || "$line" == *"# universal-backup:"* ]] || return 1
+    [[ "$line" == *"# backrest:"* ]] || return 1
 
-    marker="$(printf '%s\n' "$line" | sed -nE 's/.*# (backrest|universal-backup):[[:space:]]*(.*)$/\2/p')"
+    marker="$(printf '%s\n' "$line" | sed -nE 's/.*# backrest:[[:space:]]*(.*)$/\1/p')"
     selector="$(printf '%s\n' "$line" | sed -nE 's/.*[[:space:]]--project[[:space:]]+([^[:space:]#]+).*/\1/p')"
 
     [[ "$marker" == "$project_id" || "$selector" == "$project_id" ]] && return 0
@@ -5077,7 +4937,7 @@ _install_cron() {
 
     log_step "${L[cron_setting]}"
 
-    # Удалить старые записи этого проекта (включая legacy-идентификаторы).
+    # Удалить старые записи этого проекта.
     local current_cron="" line
     while IFS= read -r line; do
         _cron_line_matches_project "$line" "$project_arg" "$project_name" && continue
@@ -6421,13 +6281,6 @@ _settings_retention() {
             *) log_warn "${L[invalid_input_select]}" ;;
         esac
 
-        if [[ "$CFG_STORAGE_KEEP_MONTHLY" == "true" ]]; then
-            CFG_S3_RETENTION_DAYS="30"
-        elif [[ "$CFG_STORAGE_KEEP_WEEKLY" == "true" ]]; then
-            CFG_S3_RETENTION_DAYS="7"
-        else
-            CFG_S3_RETENTION_DAYS="$CFG_RETENTION_DAYS"
-        fi
     done
 }
 
@@ -6502,8 +6355,8 @@ do_remove() {
 
     # Cron
     log_step "${L[rm_cron_removing]}"
-    if crontab -l 2>/dev/null | grep -aqE 'backrest|universal-backup'; then
-        crontab -l 2>/dev/null | grep -avE 'backrest|universal-backup' | crontab -
+    if crontab -l 2>/dev/null | grep -aq 'backrest'; then
+        crontab -l 2>/dev/null | grep -av 'backrest' | crontab -
         log_info "${L[rm_cron_removed]}"
     else
         log_info "${L[rm_cron_none]}"
