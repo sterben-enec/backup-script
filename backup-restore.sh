@@ -5042,6 +5042,59 @@ _semver_gt() {
     return 1
 }
 
+_update_notify_state_file() {
+    echo "${BACKREST_HOME}/state/update_notify.state"
+}
+
+_update_notify_should_send() {
+    local latest_version="$1"
+    local state_file last_version
+    [[ -z "$latest_version" ]] && return 1
+    state_file="$(_update_notify_state_file)"
+    [[ -f "$state_file" ]] || return 0
+    last_version="$(sed -n 's/^LATEST=//p' "$state_file" 2>/dev/null | head -n1 || true)"
+    [[ "$last_version" == "$latest_version" ]] && return 1
+    return 0
+}
+
+_update_notify_mark_sent() {
+    local latest_version="$1"
+    local state_file state_dir now_epoch
+    state_file="$(_update_notify_state_file)"
+    state_dir="$(dirname "$state_file")"
+    now_epoch="$(date +%s)"
+    mkdir -p "$state_dir" 2>/dev/null || true
+    {
+        printf 'LATEST=%s\n' "$latest_version"
+        printf 'NOTIFIED_AT=%s\n' "$now_epoch"
+    } > "${state_file}.tmp"
+    mv -f "${state_file}.tmp" "$state_file"
+    secure_file "$state_file"
+}
+
+_normalize_release_notes() {
+    local notes="${1:-}" line out="" count=0
+    [[ -z "$notes" ]] && return 0
+
+    notes="${notes//\\r\\n/$'\n'}"
+    notes="${notes//\\n/$'\n'}"
+    notes="${notes//\\r/$'\n'}"
+    notes="${notes//\\t/ }"
+
+    while IFS= read -r line; do
+        line="$(printf '%s' "$line" | sed -E 's/^[[:space:]]*#{1,6}[[:space:]]*//; s/^[[:space:]]*[-*][[:space:]]+/• /; s/[[:space:]]+$//')"
+        [[ -z "$line" ]] && continue
+        if (( count > 0 )); then
+            out+=$'\n'
+        fi
+        out+="$line"
+        ((count++))
+        (( count >= 8 )) && break
+    done <<< "$notes"
+
+    printf '%s' "$out" | head -c 700
+}
+
 # ─────────────────────────────────────────────
 # Проверить и применить обновление
 # ─────────────────────────────────────────────
@@ -5194,12 +5247,14 @@ check_update_bg() {
     [[ -z "$latest_version" ]] && return
     ! _semver_gt "$latest_version" "$SCRIPT_VERSION" && return
 
-    local changelog
-    changelog=$(echo "$latest_info" | grep '"body"' | head -1 | cut -d'"' -f4 | head -c 500)
+    _update_notify_should_send "$latest_version" || return
 
-    if [[ "$CFG_AUTO_UPDATE" == "true" ]]; then
-        tg_notify_update "$SCRIPT_VERSION" "$latest_version" "$changelog"
-    fi
+    local changelog
+    changelog="$(_json_get_string_field "$latest_info" "body")"
+    changelog="$(_normalize_release_notes "$changelog")"
+
+    tg_notify_update "$SCRIPT_VERSION" "$latest_version" "$changelog"
+    _update_notify_mark_sent "$latest_version"
 }
 
 _project_selected_items_count() {
