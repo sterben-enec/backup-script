@@ -877,6 +877,8 @@ L[ul_scope_project_local]="Project"
 L[ul_scope_project_saved]="Delivery source updated:"
 L[ul_scope_global_saved]="Global delivery methods updated:"
 L[ul_scope_local_saved]="Project delivery methods updated:"
+L[ul_reconfigure_s3_q]="Reconfigure S3 credentials now?"
+L[ul_reconfigure_gd_q]="Reconfigure Google Drive credentials now?"
 L[nl_title]="Notification delivery methods"
 L[nl_current]="Current notification methods:"
 L[nl_multi_saved]="Notification methods updated:"
@@ -1593,6 +1595,8 @@ L[ul_scope_project_local]="Проектные"
 L[ul_scope_project_saved]="Источник способов доставки обновлён:"
 L[ul_scope_global_saved]="Глобальные способы доставки обновлены:"
 L[ul_scope_local_saved]="Способы доставки проекта обновлены:"
+L[ul_reconfigure_s3_q]="Перенастроить доступы S3 сейчас?"
+L[ul_reconfigure_gd_q]="Перенастроить доступы Google Drive сейчас?"
 L[nl_title]="Настройка способов отправки уведомлений"
 L[nl_current]="Текущие способы уведомлений:"
 L[nl_multi_saved]="Способы уведомлений обновлены:"
@@ -6079,7 +6083,16 @@ _settings_project() {
     while true; do
         clear
         local project_mode
+        local delivery_methods_label
+        local delivery_methods_target
         project_mode="$(_normalize_project_mode "${CFG_PROJECT_MODE:-backup}")"
+        if [[ "${CFG_USE_GLOBAL_UPLOAD_METHOD:-false}" == "true" ]]; then
+            delivery_methods_label="${L[st_project_delivery_settings]} (${L[ul_scope_project_global]})"
+            delivery_methods_target="global"
+        else
+            delivery_methods_label="${L[st_project_delivery_settings]} (${L[ul_scope_project_local]})"
+            delivery_methods_target="project"
+        fi
         _section_header "[P]" "${L[st_project_title]}"
         echo -e "  ID: ${CYAN}${CFG_ACTIVE_PROJECT:-${L[not_set]}}${NC}"
         if [[ "${CFG_PROJECT_ENABLED:-true}" == "true" ]]; then
@@ -6107,7 +6120,7 @@ _settings_project() {
                 "${L[st_project_change_mode]}" \
                 "${L[st_project_change_sender_dir]}" \
                 "${L[st_project_change_delivery_scope]}" \
-                "${L[st_project_delivery_settings]}" \
+                "${delivery_methods_label}" \
                 "${L[st_project_delivery_paths]}" \
                 "${L[st_project_remove]}" \
                 "${L[back]}"
@@ -6120,7 +6133,7 @@ _settings_project() {
                 "${L[st_project_change_components]}" \
                 "${L[st_project_pick_files]}" \
                 "${L[st_project_change_delivery_scope]}" \
-                "${L[st_project_delivery_settings]}" \
+                "${delivery_methods_label}" \
                 "${L[st_project_delivery_paths]}" \
                 "${L[st_project_remove]}" \
                 "${L[back]}"
@@ -6157,7 +6170,7 @@ _settings_project() {
                 ;;
             6)
                 if [[ "$project_mode" == "sender" ]]; then
-                    _menu_choose_upload_method project
+                    _menu_choose_upload_method "$delivery_methods_target"
                 else
                     if [[ -z "$CFG_PROJECT_DIR" || ! -d "$CFG_PROJECT_DIR" ]]; then
                         log_warn "${L[bk_dir_missing]} ${CFG_PROJECT_DIR:-${L[not_set]}}"
@@ -6181,7 +6194,7 @@ _settings_project() {
                         return
                     fi
                 else
-                    _menu_choose_upload_method project
+                    _menu_choose_upload_method "$delivery_methods_target"
                 fi
                 ;;
             9)
@@ -6837,12 +6850,26 @@ _menu_choose_upload_method() {
                             press_enter
                             continue
                         fi
+                    elif [[ "$use_s3" == "true" ]]; then
+                        if confirm "${L[ul_reconfigure_s3_q]}"; then
+                            if ! setup_s3_config; then
+                                press_enter
+                                continue
+                            fi
+                        fi
                     fi
 
                     if [[ "$use_gd" == "true" ]] && ! _gd_is_configured; then
                         if ! setup_gd_config; then
                             press_enter
                             continue
+                        fi
+                    elif [[ "$use_gd" == "true" ]]; then
+                        if confirm "${L[ul_reconfigure_gd_q]}"; then
+                            if ! setup_gd_config; then
+                                press_enter
+                                continue
+                            fi
                         fi
                     fi
 
