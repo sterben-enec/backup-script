@@ -1039,6 +1039,8 @@ L[st_project_change_dir]="Change project directory"
 L[st_project_change_sender_dir]="Change sender source directory"
 L[st_project_change_delivery_scope]="Change delivery source"
 L[st_project_delivery_settings]="Project delivery methods"
+L[st_project_delivery_paths]="Project delivery directories"
+L[st_project_delivery_paths_hint]="Per-project S3 Prefix / Google Drive Folder are configured in Project settings."
 L[st_project_change_scope]="Choose what to backup from directory"
 L[st_project_disable_dir]="Disable directory backup"
 L[st_project_enable_dir]="Enable directory backup"
@@ -1753,6 +1755,8 @@ L[st_project_change_dir]="Изменить директорию проекта"
 L[st_project_change_sender_dir]="Изменить директорию sender"
 L[st_project_change_delivery_scope]="Изменить источник доставки"
 L[st_project_delivery_settings]="Способы доставки проекта"
+L[st_project_delivery_paths]="Директории доставки проекта"
+L[st_project_delivery_paths_hint]="S3 Prefix / Google Drive Folder задаются в настройках проекта."
 L[st_project_change_scope]="Выбрать что бэкапить из директории"
 L[st_project_disable_dir]="Отключить бэкап директории"
 L[st_project_enable_dir]="Включить бэкап директории"
@@ -1961,7 +1965,14 @@ CFG_PROJECT_ID=""
 CFG_UPLOAD_METHOD=""
 CFG_GLOBAL_UPLOAD_METHOD=""
 
-# S3 (профиль проекта)
+# S3 credentials (глобально)
+CFG_GLOBAL_S3_ENDPOINT=""
+CFG_GLOBAL_S3_REGION="us-east-1"
+CFG_GLOBAL_S3_BUCKET=""
+CFG_GLOBAL_S3_ACCESS_KEY=""
+CFG_GLOBAL_S3_SECRET_KEY=""
+
+# S3 (runtime + проектный prefix)
 CFG_S3_ENDPOINT=""
 CFG_S3_REGION="us-east-1"
 CFG_S3_BUCKET=""
@@ -1972,7 +1983,12 @@ CFG_STORAGE_KEEP_WEEKLY="true"
 CFG_STORAGE_KEEP_MONTHLY="true"
 CFG_S3_RETENTION_DAYS="30" # legacy, сохраняется для обратной совместимости
 
-# Google Drive (профиль проекта)
+# Google Drive credentials (глобально)
+CFG_GLOBAL_GD_CLIENT_ID=""
+CFG_GLOBAL_GD_CLIENT_SECRET=""
+CFG_GLOBAL_GD_REFRESH_TOKEN=""
+
+# Google Drive (runtime + проектная папка)
 CFG_GD_CLIENT_ID=""
 CFG_GD_CLIENT_SECRET=""
 CFG_GD_REFRESH_TOKEN=""
@@ -2314,6 +2330,18 @@ _effective_upload_methods() {
     fi
 }
 
+_sync_runtime_delivery_credentials() {
+    CFG_S3_ENDPOINT="${CFG_GLOBAL_S3_ENDPOINT:-${CFG_S3_ENDPOINT:-}}"
+    CFG_S3_REGION="${CFG_GLOBAL_S3_REGION:-${CFG_S3_REGION:-us-east-1}}"
+    CFG_S3_BUCKET="${CFG_GLOBAL_S3_BUCKET:-${CFG_S3_BUCKET:-}}"
+    CFG_S3_ACCESS_KEY="${CFG_GLOBAL_S3_ACCESS_KEY:-${CFG_S3_ACCESS_KEY:-}}"
+    CFG_S3_SECRET_KEY="${CFG_GLOBAL_S3_SECRET_KEY:-${CFG_S3_SECRET_KEY:-}}"
+
+    CFG_GD_CLIENT_ID="${CFG_GLOBAL_GD_CLIENT_ID:-${CFG_GD_CLIENT_ID:-}}"
+    CFG_GD_CLIENT_SECRET="${CFG_GLOBAL_GD_CLIENT_SECRET:-${CFG_GD_CLIENT_SECRET:-}}"
+    CFG_GD_REFRESH_TOKEN="${CFG_GLOBAL_GD_REFRESH_TOKEN:-${CFG_GD_REFRESH_TOKEN:-}}"
+}
+
 _s3_is_configured() {
     [[ -n "${CFG_S3_BUCKET:-}" && -n "${CFG_S3_ACCESS_KEY:-}" && -n "${CFG_S3_SECRET_KEY:-}" ]]
 }
@@ -2367,20 +2395,10 @@ project_count() {
 
 reset_project_profile_defaults() {
     CFG_UPLOAD_METHOD=""
-
-    CFG_S3_ENDPOINT=""
-    CFG_S3_REGION="us-east-1"
-    CFG_S3_BUCKET=""
-    CFG_S3_ACCESS_KEY=""
-    CFG_S3_SECRET_KEY=""
     CFG_S3_PREFIX=""
     CFG_STORAGE_KEEP_WEEKLY="true"
     CFG_STORAGE_KEEP_MONTHLY="true"
     CFG_S3_RETENTION_DAYS="30"
-
-    CFG_GD_CLIENT_ID=""
-    CFG_GD_CLIENT_SECRET=""
-    CFG_GD_REFRESH_TOKEN=""
     CFG_GD_FOLDER_ID=""
 
     CFG_DB_TYPE="none"
@@ -2412,6 +2430,8 @@ reset_project_profile_defaults() {
     CFG_BACKUP_DIR_ENABLED="true"
     CFG_BACKUP_DIR_MODE="full"
     CFG_BACKUP_DIR_ITEMS=""
+
+    _sync_runtime_delivery_credentials
 }
 
 project_display_name() {
@@ -2548,7 +2568,19 @@ save_global_config() {
         printf 'CFG_THREAD_ID=%s\n'         "$(printf '%q' "$CFG_THREAD_ID")"
         printf 'CFG_TG_PROXY=%s\n'          "$(printf '%q' "$CFG_TG_PROXY")"
         printf 'CFG_NOTIFY_METHOD=%s\n'     "$CFG_NOTIFY_METHOD"
-        printf 'CFG_GLOBAL_UPLOAD_METHOD=%s\n' "$CFG_GLOBAL_UPLOAD_METHOD"
+        printf 'CFG_GLOBAL_UPLOAD_METHOD=%s\n\n' "$CFG_GLOBAL_UPLOAD_METHOD"
+
+        printf '# S3 credentials\n'
+        printf 'CFG_GLOBAL_S3_ENDPOINT=%s\n'   "$(printf '%q' "$CFG_GLOBAL_S3_ENDPOINT")"
+        printf 'CFG_GLOBAL_S3_REGION=%s\n'     "$CFG_GLOBAL_S3_REGION"
+        printf 'CFG_GLOBAL_S3_BUCKET=%s\n'     "$(printf '%q' "$CFG_GLOBAL_S3_BUCKET")"
+        printf 'CFG_GLOBAL_S3_ACCESS_KEY=%s\n' "$(printf '%q' "$CFG_GLOBAL_S3_ACCESS_KEY")"
+        printf 'CFG_GLOBAL_S3_SECRET_KEY=%s\n\n' "$(printf '%q' "$CFG_GLOBAL_S3_SECRET_KEY")"
+
+        printf '# Google Drive credentials\n'
+        printf 'CFG_GLOBAL_GD_CLIENT_ID=%s\n'     "$(printf '%q' "$CFG_GLOBAL_GD_CLIENT_ID")"
+        printf 'CFG_GLOBAL_GD_CLIENT_SECRET=%s\n' "$(printf '%q' "$CFG_GLOBAL_GD_CLIENT_SECRET")"
+        printf 'CFG_GLOBAL_GD_REFRESH_TOKEN=%s\n' "$(printf '%q' "$CFG_GLOBAL_GD_REFRESH_TOKEN")"
     } | (umask 077; cat > "${cfg_file}.tmp") && mv "${cfg_file}.tmp" "$cfg_file"
     secure_file "$cfg_file"
 }
@@ -2585,20 +2617,12 @@ save_project_config() {
         printf 'CFG_UPLOAD_METHOD=%s\n\n' "$CFG_UPLOAD_METHOD"
 
         printf '# S3\n'
-        printf 'CFG_S3_ENDPOINT=%s\n'        "$(printf '%q' "$CFG_S3_ENDPOINT")"
-        printf 'CFG_S3_REGION=%s\n'          "$CFG_S3_REGION"
-        printf 'CFG_S3_BUCKET=%s\n'          "$(printf '%q' "$CFG_S3_BUCKET")"
-        printf 'CFG_S3_ACCESS_KEY=%s\n'      "$(printf '%q' "$CFG_S3_ACCESS_KEY")"
-        printf 'CFG_S3_SECRET_KEY=%s\n'      "$(printf '%q' "$CFG_S3_SECRET_KEY")"
         printf 'CFG_S3_PREFIX=%s\n'          "$(printf '%q' "$CFG_S3_PREFIX")"
         printf 'CFG_STORAGE_KEEP_WEEKLY=%s\n' "$CFG_STORAGE_KEEP_WEEKLY"
         printf 'CFG_STORAGE_KEEP_MONTHLY=%s\n' "$CFG_STORAGE_KEEP_MONTHLY"
         printf 'CFG_S3_RETENTION_DAYS=%s\n\n' "$s3_retention_days_legacy"
 
         printf '# Google Drive\n'
-        printf 'CFG_GD_CLIENT_ID=%s\n'       "$(printf '%q' "$CFG_GD_CLIENT_ID")"
-        printf 'CFG_GD_CLIENT_SECRET=%s\n'   "$(printf '%q' "$CFG_GD_CLIENT_SECRET")"
-        printf 'CFG_GD_REFRESH_TOKEN=%s\n'   "$(printf '%q' "$CFG_GD_REFRESH_TOKEN")"
         printf 'CFG_GD_FOLDER_ID=%s\n\n'     "$(printf '%q' "$CFG_GD_FOLDER_ID")"
 
         printf '# Database\n'
@@ -2658,6 +2682,7 @@ load_project_config() {
     CFG_SCHEDULE_HOURLY_ENABLED="$(_normalize_bool "${CFG_SCHEDULE_HOURLY_ENABLED:-true}" "true")"
     CFG_SCHEDULE_DAILY_ENABLED="$(_normalize_bool "${CFG_SCHEDULE_DAILY_ENABLED:-false}" "false")"
     CFG_TELEGRAM_SEND_MODE="$(_normalize_tg_send_mode "${CFG_TELEGRAM_SEND_MODE:-weekly}")"
+    _sync_runtime_delivery_credentials
 
     legacy_local_days="${CFG_RETENTION_DAYS:-30}"
     CFG_RETENTION_HOURLY_PERIOD="$(_normalize_retention_period "${CFG_RETENTION_HOURLY_PERIOD:-day}" "day")"
@@ -2731,6 +2756,8 @@ load_config() {
     CFG_NOTIFY_METHOD="$(_normalize_notify_methods "${CFG_NOTIFY_METHOD:-telegram}")"
     [[ -z "$CFG_NOTIFY_METHOD" ]] && CFG_NOTIFY_METHOD="telegram"
     CFG_GLOBAL_UPLOAD_METHOD="$(_normalize_upload_methods "${CFG_GLOBAL_UPLOAD_METHOD:-}")"
+    CFG_GLOBAL_S3_REGION="${CFG_GLOBAL_S3_REGION:-us-east-1}"
+    _sync_runtime_delivery_credentials
     log_info "${L[cfg_loaded]} $real_cfg"
 
     # Позволяем фиксировать PROJECTS_DIR в конфиге, но если нет — оставляем текущий.
@@ -2995,21 +3022,19 @@ setup_upload_method_wizard() {
 setup_s3_config() {
     echo ""
     echo "${L[ul_s3_enter]}"
-    read -rp "${L[ul_s3_enter_endpoint]}" CFG_S3_ENDPOINT
-    read -rp "${L[ul_s3_enter_region]}" CFG_S3_REGION
-    [[ -z "$CFG_S3_REGION" ]] && CFG_S3_REGION="us-east-1"
-    read -rp "${L[ul_s3_enter_bucket]}" CFG_S3_BUCKET
-    read -rp "${L[ul_s3_enter_access]}" CFG_S3_ACCESS_KEY
-    read -rsp "${L[ul_s3_enter_secret]}" CFG_S3_SECRET_KEY; echo ""
-    echo "${L[ul_s3_prefix_info1]}"
-    echo "${L[ul_s3_prefix_info2]}"
-    read -rp "${L[ul_s3_enter_prefix]}" CFG_S3_PREFIX
+    read -rp "${L[ul_s3_enter_endpoint]}" CFG_GLOBAL_S3_ENDPOINT
+    read -rp "${L[ul_s3_enter_region]}" CFG_GLOBAL_S3_REGION
+    [[ -z "$CFG_GLOBAL_S3_REGION" ]] && CFG_GLOBAL_S3_REGION="us-east-1"
+    read -rp "${L[ul_s3_enter_bucket]}" CFG_GLOBAL_S3_BUCKET
+    read -rp "${L[ul_s3_enter_access]}" CFG_GLOBAL_S3_ACCESS_KEY
+    read -rsp "${L[ul_s3_enter_secret]}" CFG_GLOBAL_S3_SECRET_KEY; echo ""
 
-    if [[ -z "$CFG_S3_BUCKET" || -z "$CFG_S3_ACCESS_KEY" || -z "$CFG_S3_SECRET_KEY" ]]; then
+    if [[ -z "$CFG_GLOBAL_S3_BUCKET" || -z "$CFG_GLOBAL_S3_ACCESS_KEY" || -z "$CFG_GLOBAL_S3_SECRET_KEY" ]]; then
         log_warn "${L[ul_s3_fail]}"
         log_warn "${L[ul_s3_not_done]}"
         return 1
     fi
+    _sync_runtime_delivery_credentials
     log_info "${L[ul_s3_saved]}"
 }
 
@@ -3018,17 +3043,17 @@ setup_gd_config() {
     echo ""
     echo "${L[ul_gd_enter]}"
     echo "${L[cfg_gd_no_tokens]}"
-    read -rp "${L[cfg_enter_gd_id]}" CFG_GD_CLIENT_ID
-    read -rsp "${L[cfg_enter_gd_secret]}" CFG_GD_CLIENT_SECRET; echo ""
+    read -rp "${L[cfg_enter_gd_id]}" CFG_GLOBAL_GD_CLIENT_ID
+    read -rsp "${L[cfg_enter_gd_secret]}" CFG_GLOBAL_GD_CLIENT_SECRET; echo ""
 
-    if [[ -z "$CFG_GD_CLIENT_ID" || -z "$CFG_GD_CLIENT_SECRET" ]]; then
+    if [[ -z "$CFG_GLOBAL_GD_CLIENT_ID" || -z "$CFG_GLOBAL_GD_CLIENT_SECRET" ]]; then
         log_warn "${L[cfg_gd_missing]}"
         log_warn "${L[cfg_gd_switch_tg]}"
         return 1
     fi
 
     # Получить refresh token
-    local auth_url="https://accounts.google.com/o/oauth2/v2/auth?client_id=${CFG_GD_CLIENT_ID}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=https://www.googleapis.com/auth/drive.file&access_type=offline&prompt=consent"
+    local auth_url="https://accounts.google.com/o/oauth2/v2/auth?client_id=${CFG_GLOBAL_GD_CLIENT_ID}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=https://www.googleapis.com/auth/drive.file&access_type=offline&prompt=consent"
     echo ""
     echo "${L[cfg_gd_auth_needed]}"
     echo "${L[cfg_gd_open_url]}"
@@ -3040,15 +3065,15 @@ setup_gd_config() {
     local response oauth_error oauth_desc
     response="$(curl -sS -X POST "https://oauth2.googleapis.com/token" \
         --data-urlencode "code=${gd_code}" \
-        --data-urlencode "client_id=${CFG_GD_CLIENT_ID}" \
-        --data-urlencode "client_secret=${CFG_GD_CLIENT_SECRET}" \
+        --data-urlencode "client_id=${CFG_GLOBAL_GD_CLIENT_ID}" \
+        --data-urlencode "client_secret=${CFG_GLOBAL_GD_CLIENT_SECRET}" \
         --data-urlencode "redirect_uri=urn:ietf:wg:oauth:2.0:oob" \
         --data-urlencode "grant_type=authorization_code" 2>/dev/null || true)"
-    CFG_GD_REFRESH_TOKEN="$(_json_get_string_field "$response" "refresh_token")"
+    CFG_GLOBAL_GD_REFRESH_TOKEN="$(_json_get_string_field "$response" "refresh_token")"
     oauth_error="$(_json_get_string_field "$response" "error")"
     oauth_desc="$(_json_get_string_field "$response" "error_description")"
 
-    if [[ -z "$CFG_GD_REFRESH_TOKEN" ]]; then
+    if [[ -z "$CFG_GLOBAL_GD_REFRESH_TOKEN" ]]; then
         if [[ -n "$oauth_error" || -n "$oauth_desc" ]]; then
             log_warn "Google OAuth error: ${oauth_error:-unknown}${oauth_desc:+ (${oauth_desc})}"
         fi
@@ -3058,10 +3083,7 @@ setup_gd_config() {
     fi
 
     log_info "${L[ul_gd_token_ok]}"
-    echo "${L[cfg_gd_folder1]}"
-    echo "${L[cfg_gd_folder3]} https://drive.google.com/drive/folders/FOLDER_ID"
-    echo "${L[cfg_gd_folder5]}"
-    read -rp "${L[cfg_enter_gd_folder]}" CFG_GD_FOLDER_ID
+    _sync_runtime_delivery_credentials
     log_info "${L[ul_gd_saved]}"
 }
 
@@ -5733,29 +5755,30 @@ _settings_telegram() {
 # ─────────────────────────────────────────────
 _settings_s3() {
     while true; do
+        _sync_runtime_delivery_credentials
         clear
         _section_header "[^]" "${L[st_s3_title]}"
-        echo -e "  ${L[st_s3_endpoint]} ${BRIGHT_YELLOW}${CFG_S3_ENDPOINT:-${L[not_set]}}${NC}"
-        echo -e "  ${L[st_s3_region]}   ${BRIGHT_YELLOW}${CFG_S3_REGION:-${L[not_set]}}${NC}"
-        echo -e "  ${L[st_s3_bucket]}   ${BRIGHT_YELLOW}${CFG_S3_BUCKET:-${L[not_set]}}${NC}"
-        echo -e "  ${L[st_s3_access]}   ${CFG_S3_ACCESS_KEY:+${CYAN}${CFG_S3_ACCESS_KEY:0:8}…${NC}}${CFG_S3_ACCESS_KEY:-${L[not_set]}}"
-        echo -e "  ${L[st_s3_secret]}   ${CFG_S3_SECRET_KEY:+${DIM}***${NC}}${CFG_S3_SECRET_KEY:-${L[not_set]}}"
-        echo -e "  ${L[st_s3_prefix]}   ${CFG_S3_PREFIX:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_s3_endpoint]} ${BRIGHT_YELLOW}${CFG_GLOBAL_S3_ENDPOINT:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_s3_region]}   ${BRIGHT_YELLOW}${CFG_GLOBAL_S3_REGION:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_s3_bucket]}   ${BRIGHT_YELLOW}${CFG_GLOBAL_S3_BUCKET:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_s3_access]}   ${CFG_GLOBAL_S3_ACCESS_KEY:+${CYAN}${CFG_GLOBAL_S3_ACCESS_KEY:0:8}…${NC}}${CFG_GLOBAL_S3_ACCESS_KEY:-${L[not_set]}}"
+        echo -e "  ${L[st_s3_secret]}   ${CFG_GLOBAL_S3_SECRET_KEY:+${DIM}***${NC}}${CFG_GLOBAL_S3_SECRET_KEY:-${L[not_set]}}"
+        echo -e "  ${DIM}${L[st_project_delivery_paths_hint]}${NC}"
         echo ""
-        _menu_select "1 2 3 4 5 6 7 0" "1" \
+        _menu_select "1 2 3 4 5 6 0" "1" \
             "${L[st_s3_change_endpoint]}" "${L[st_s3_change_region]}" "${L[st_s3_change_bucket]}" "${L[st_s3_change_access]}" \
-            "${L[st_s3_change_secret]}" "${L[st_s3_change_prefix]}" "${L[st_s3_test]}" "${L[back]}"
+            "${L[st_s3_change_secret]}" "${L[st_s3_test]}" "${L[back]}"
         choice="$MENU_CHOICE"
         case "$choice" in
-            1) read -rp "${L[st_s3_enter_endpoint]}" CFG_S3_ENDPOINT; log_info "${L[st_s3_endpoint_ok]}" ;;
-            2) read -rp "${L[st_s3_enter_region]}" CFG_S3_REGION
-               [[ -z "$CFG_S3_REGION" ]] && CFG_S3_REGION="us-east-1"
+            1) read -rp "${L[st_s3_enter_endpoint]}" CFG_GLOBAL_S3_ENDPOINT; _sync_runtime_delivery_credentials; log_info "${L[st_s3_endpoint_ok]}" ;;
+            2) read -rp "${L[st_s3_enter_region]}" CFG_GLOBAL_S3_REGION
+               [[ -z "$CFG_GLOBAL_S3_REGION" ]] && CFG_GLOBAL_S3_REGION="us-east-1"
+               _sync_runtime_delivery_credentials
                log_info "${L[st_s3_region_ok]}" ;;
-            3) read -rp "${L[st_s3_enter_bucket]}" CFG_S3_BUCKET; log_info "${L[st_s3_bucket_ok]}" ;;
-            4) read -rp "${L[st_s3_enter_access]}" CFG_S3_ACCESS_KEY; log_info "${L[st_s3_access_ok]}" ;;
-            5) read -rsp "${L[st_s3_enter_secret]}" CFG_S3_SECRET_KEY; echo ""; log_info "${L[st_s3_secret_ok]}" ;;
-            6) read -rp "${L[st_s3_enter_prefix]}" CFG_S3_PREFIX; log_info "${L[st_s3_prefix_ok]}" ;;
-            7) s3_test_connection ;;
+            3) read -rp "${L[st_s3_enter_bucket]}" CFG_GLOBAL_S3_BUCKET; _sync_runtime_delivery_credentials; log_info "${L[st_s3_bucket_ok]}" ;;
+            4) read -rp "${L[st_s3_enter_access]}" CFG_GLOBAL_S3_ACCESS_KEY; _sync_runtime_delivery_credentials; log_info "${L[st_s3_access_ok]}" ;;
+            5) read -rsp "${L[st_s3_enter_secret]}" CFG_GLOBAL_S3_SECRET_KEY; echo ""; _sync_runtime_delivery_credentials; log_info "${L[st_s3_secret_ok]}" ;;
+            6) s3_test_connection ;;
             0) return ;;
             *) log_warn "${L[invalid_input_select]}" ;;
         esac
@@ -5767,23 +5790,23 @@ _settings_s3() {
 # ─────────────────────────────────────────────
 _settings_gd() {
     while true; do
+        _sync_runtime_delivery_credentials
         clear
         _section_header "[k]" "${L[st_gd_title]}"
-        echo -e "  ${L[st_gd_client_id]} ${CFG_GD_CLIENT_ID:+${CYAN}${CFG_GD_CLIENT_ID:0:10}…${NC}}${CFG_GD_CLIENT_ID:-${L[not_set]}}"
-        echo -e "  ${L[st_gd_secret]}    ${CFG_GD_CLIENT_SECRET:+${DIM}***${NC}}${CFG_GD_CLIENT_SECRET:-${L[not_set]}}"
-        echo -e "  ${L[st_gd_refresh]}   ${CFG_GD_REFRESH_TOKEN:+${BRIGHT_GREEN}✔ set${NC}}${CFG_GD_REFRESH_TOKEN:-${L[not_set]}}"
-        echo -e "  ${L[st_gd_folder]}    ${CFG_GD_FOLDER_ID:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_gd_client_id]} ${CFG_GLOBAL_GD_CLIENT_ID:+${CYAN}${CFG_GLOBAL_GD_CLIENT_ID:0:10}…${NC}}${CFG_GLOBAL_GD_CLIENT_ID:-${L[not_set]}}"
+        echo -e "  ${L[st_gd_secret]}    ${CFG_GLOBAL_GD_CLIENT_SECRET:+${DIM}***${NC}}${CFG_GLOBAL_GD_CLIENT_SECRET:-${L[not_set]}}"
+        echo -e "  ${L[st_gd_refresh]}   ${CFG_GLOBAL_GD_REFRESH_TOKEN:+${BRIGHT_GREEN}✔ set${NC}}${CFG_GLOBAL_GD_REFRESH_TOKEN:-${L[not_set]}}"
+        echo -e "  ${DIM}${L[st_project_delivery_paths_hint]}${NC}"
         echo ""
-        _menu_select "1 2 3 4 0" "1" \
-            "${L[st_gd_change_id]}" "${L[st_gd_change_secret]}" "${L[st_gd_change_refresh]}" "${L[st_gd_change_folder]}" "${L[back]}"
+        _menu_select "1 2 3 0" "1" \
+            "${L[st_gd_change_id]}" "${L[st_gd_change_secret]}" "${L[st_gd_change_refresh]}" "${L[back]}"
         choice="$MENU_CHOICE"
         case "$choice" in
-            1) read -rp "${L[st_gd_enter_id]}" CFG_GD_CLIENT_ID; log_info "${L[st_gd_id_ok]}" ;;
-            2) read -rsp "${L[st_gd_enter_secret]}" CFG_GD_CLIENT_SECRET; echo ""; log_info "${L[st_gd_secret_ok]}" ;;
+            1) read -rp "${L[st_gd_enter_id]}" CFG_GLOBAL_GD_CLIENT_ID; _sync_runtime_delivery_credentials; log_info "${L[st_gd_id_ok]}" ;;
+            2) read -rsp "${L[st_gd_enter_secret]}" CFG_GLOBAL_GD_CLIENT_SECRET; echo ""; _sync_runtime_delivery_credentials; log_info "${L[st_gd_secret_ok]}" ;;
             3)
                 setup_gd_config
                 ;;
-            4) read -rp "${L[st_gd_enter_folder]}" CFG_GD_FOLDER_ID; log_info "${L[st_gd_folder_ok]}" ;;
             0) return ;;
             *) log_warn "${L[invalid_input_select]}" ;;
         esac
@@ -6175,6 +6198,23 @@ _settings_project_change_delivery_scope() {
     log_info "${L[st_project_delivery_scope_ok]} $(_delivery_scope_label "$CFG_USE_GLOBAL_UPLOAD_METHOD")"
 }
 
+_settings_project_delivery_paths() {
+    while true; do
+        clear
+        _section_header "[P]" "${L[st_project_delivery_paths]}"
+        echo -e "  ${L[st_s3_prefix]} ${BRIGHT_YELLOW}${CFG_S3_PREFIX:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_gd_folder]} ${BRIGHT_YELLOW}${CFG_GD_FOLDER_ID:-${L[not_set]}}${NC}"
+        echo ""
+        _menu_select "1 2 0" "1" "${L[st_s3_change_prefix]}" "${L[st_gd_change_folder]}" "${L[back]}"
+        case "$MENU_CHOICE" in
+            1) read -rp "${L[st_s3_enter_prefix]}" CFG_S3_PREFIX; log_info "${L[st_s3_prefix_ok]}" ;;
+            2) read -rp "${L[st_gd_enter_folder]}" CFG_GD_FOLDER_ID; log_info "${L[st_gd_folder_ok]}" ;;
+            0) return ;;
+            *) log_warn "${L[invalid_input_select]}" ;;
+        esac
+    done
+}
+
 _settings_project() {
     while true; do
         clear
@@ -6191,6 +6231,8 @@ _settings_project() {
         echo -e "  ${L[st_project_mode]} ${BRIGHT_YELLOW}$(_project_mode_label "$project_mode")${NC}"
         echo -e "  ${L[st_project_delivery_source]} ${BRIGHT_YELLOW}$(_delivery_scope_label "${CFG_USE_GLOBAL_UPLOAD_METHOD:-false}")${NC}"
         echo -e "  ${L[ul_current]} ${BRIGHT_YELLOW}$(_upload_methods_text "$(_effective_upload_methods)")${NC}"
+        echo -e "  ${L[st_s3_prefix]} ${BRIGHT_YELLOW}${CFG_S3_PREFIX:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_gd_folder]} ${BRIGHT_YELLOW}${CFG_GD_FOLDER_ID:-${L[not_set]}}${NC}"
         if [[ "$project_mode" == "sender" ]]; then
             echo -e "  ${L[st_project_sender_dir]} ${CFG_SENDER_SOURCE_DIR:-${L[not_set]}}"
         else
@@ -6199,17 +6241,18 @@ _settings_project() {
         fi
         echo ""
         if [[ "$project_mode" == "sender" ]]; then
-            _menu_select "1 2 3 4 5 6 7 0" "1" \
+            _menu_select "1 2 3 4 5 6 7 8 0" "1" \
                 "${L[st_project_toggle_backup]}" \
                 "${L[st_project_change_name]}" \
                 "${L[st_project_change_mode]}" \
                 "${L[st_project_change_sender_dir]}" \
                 "${L[st_project_change_delivery_scope]}" \
                 "${L[st_project_delivery_settings]}" \
+                "${L[st_project_delivery_paths]}" \
                 "${L[st_project_remove]}" \
                 "${L[back]}"
         else
-            _menu_select "1 2 3 4 5 6 7 8 9 0" "1" \
+            _menu_select "1 2 3 4 5 6 7 8 9 10 0" "1" \
                 "${L[st_project_toggle_backup]}" \
                 "${L[st_project_change_name]}" \
                 "${L[st_project_change_mode]}" \
@@ -6218,6 +6261,7 @@ _settings_project() {
                 "${L[st_project_pick_files]}" \
                 "${L[st_project_change_delivery_scope]}" \
                 "${L[st_project_delivery_settings]}" \
+                "${L[st_project_delivery_paths]}" \
                 "${L[st_project_remove]}" \
                 "${L[back]}"
         fi
@@ -6266,19 +6310,26 @@ _settings_project() {
                 ;;
             7)
                 if [[ "$project_mode" == "sender" ]]; then
-                    if _settings_project_delete_current; then
-                        return
-                    fi
+                    _settings_project_delivery_paths
                 else
                     _settings_project_change_delivery_scope
                 fi
                 ;;
             8)
-                if [[ "$project_mode" != "sender" ]]; then
+                if [[ "$project_mode" == "sender" ]]; then
+                    if _settings_project_delete_current; then
+                        return
+                    fi
+                else
                     _menu_choose_upload_method project
                 fi
                 ;;
             9)
+                if [[ "$project_mode" != "sender" ]]; then
+                    _settings_project_delivery_paths
+                fi
+                ;;
+            10)
                 if [[ "$project_mode" != "sender" ]]; then
                     if _settings_project_delete_current; then
                         return
