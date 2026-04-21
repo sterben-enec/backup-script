@@ -878,6 +878,7 @@ L[st_tg_change_token]="Change API Token"
 L[st_tg_change_id]="Change Chat ID"
 L[st_tg_change_thread]="Change Message Thread ID"
 L[st_tg_change_proxy]="Configure proxy"
+L[st_tg_test]="Send test notification"
 L[st_tg_enter_token]="Enter new API Token: "
 L[st_tg_token_ok]="API Token updated."
 L[st_tg_chatid_desc]="Group Chat ID or your Telegram ID"
@@ -891,6 +892,10 @@ L[st_tg_proxy_examples]="Format: socks5://host:port or http://host:port. Empty �
 L[st_tg_enter_proxy]="Proxy (Enter — disable): "
 L[st_tg_proxy_ok]="Proxy set."
 L[st_tg_proxy_cleared]="Proxy disabled."
+L[st_tg_test_missing]="Set API Token and Chat ID first."
+L[st_tg_testing]="Sending test notification..."
+L[st_tg_test_ok]="Test notification sent."
+L[st_tg_test_fail]="Failed to send test notification."
 L[tg_mode_hourly]="Hourly"
 L[tg_mode_weekly]="Weekly"
 L[tg_mode_changed]="Telegram mode:"
@@ -1549,6 +1554,7 @@ L[st_tg_change_token]="Изменить API Token"
 L[st_tg_change_id]="Изменить Chat ID"
 L[st_tg_change_thread]="Изменить Message Thread ID"
 L[st_tg_change_proxy]="Настроить прокси"
+L[st_tg_test]="Отправить тестовое уведомление"
 L[st_tg_enter_token]="Введите новый API Token: "
 L[st_tg_token_ok]="API Token обновлен."
 L[st_tg_chatid_desc]="Chat ID группы или Telegram ID"
@@ -1562,6 +1568,10 @@ L[st_tg_proxy_examples]="Формат: socks5://host:port или http://host:por
 L[st_tg_enter_proxy]="Прокси (Enter — отключить): "
 L[st_tg_proxy_ok]="Прокси установлен."
 L[st_tg_proxy_cleared]="Прокси отключен."
+L[st_tg_test_missing]="Сначала укажите API Token и Chat ID."
+L[st_tg_testing]="Отправляем тестовое уведомление..."
+L[st_tg_test_ok]="Тестовое уведомление отправлено."
+L[st_tg_test_fail]="Не удалось отправить тестовое уведомление."
 L[tg_mode_hourly]="Ежечасно"
 L[tg_mode_weekly]="Еженедельно"
 L[tg_mode_changed]="Режим Telegram:"
@@ -2837,12 +2847,24 @@ load_language() {
 
 TG_API_BASE="https://api.telegram.org/bot"
 
+_tg_escape_html() {
+    local value="$1"
+    value="${value//&/&amp;}"
+    value="${value//</&lt;}"
+    value="${value//>/&gt;}"
+    printf '%s' "$value"
+}
+
+_tg_now() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
 # Отправить текстовое сообщение
 tg_send_message() {
     local text="$1"
     [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && return 0
 
-    local curl_args=(-s --connect-timeout 10 --max-time 30 -X POST "${TG_API_BASE}${CFG_BOT_TOKEN}/sendMessage"
+    local curl_args=(-sS --connect-timeout 10 --max-time 30 -X POST "${TG_API_BASE}${CFG_BOT_TOKEN}/sendMessage"
         -d "chat_id=${CFG_CHAT_ID}"
         -d "text=${text}"
         -d "parse_mode=HTML"
@@ -2850,8 +2872,24 @@ tg_send_message() {
     [[ -n "$CFG_THREAD_ID" ]] && curl_args+=(-d "message_thread_id=${CFG_THREAD_ID}")
     [[ -n "$CFG_TG_PROXY" ]] && curl_args+=(--proxy "$CFG_TG_PROXY")
 
-    local response http_code
-    response=$(curl "${curl_args[@]}")
+    local response
+    response=$(curl "${curl_args[@]}" 2>&1)
+    local exit_code=$?
+
+    # Часто на серверах встречается подвисание IPv6 до таймаута.
+    # Если первая попытка упала по timeout/сетевой ошибке — пробуем IPv4.
+    if [[ $exit_code -ne 0 && ( $exit_code -eq 28 || $exit_code -eq 7 || $exit_code -eq 6 ) ]]; then
+        response=$(curl --ipv4 "${curl_args[@]}" 2>&1)
+        exit_code=$?
+    fi
+
+    if [[ $exit_code -ne 0 ]]; then
+        log_error "${L[tg_curl_err]} $exit_code"
+        log_warn "${L[tg_check_net]}"
+        [[ -n "$response" ]] && log_error "${L[tg_resp_label]} $response"
+        return 1
+    fi
+
     local ok; ok=$(echo "$response" | grep -o '"ok":true')
     if [[ -z "$ok" ]]; then
         log_error "${L[tg_send_err]} $(echo "$response" | grep -o '"error_code":[0-9]*')"
@@ -2916,7 +2954,8 @@ _tg_backup_compact_text() {
     local fail_csv="$4"
     local note="${5:-}"
 
-    local ok_text fail_text text
+    local ok_text fail_text text now
+    local safe_project safe_size safe_ok_text safe_fail_text safe_note safe_now
     if [[ -n "$ok_csv" ]]; then
         ok_text="$(_upload_methods_text "$ok_csv")"
     else
@@ -2927,20 +2966,33 @@ _tg_backup_compact_text() {
         fi
     fi
     fail_text="$(_upload_methods_text "$fail_csv")"
+    safe_project="$(_tg_escape_html "$project_name")"
+    safe_size="$(_tg_escape_html "$size")"
+    safe_ok_text="$(_tg_escape_html "$ok_text")"
+    safe_fail_text="$(_tg_escape_html "$fail_text")"
+    safe_note="$(_tg_escape_html "$note")"
+    now="$(_tg_now)"
+    safe_now="$(_tg_escape_html "$now")"
 
     if [[ "$CFG_LANG" == "ru" ]]; then
-        text="✅ <b>Бэкап</b> <code>${project_name}</code> • <code>${size}</code>
-✅ ${ok_text}"
+        text="✅ <b>Бэкап завершён</b>
+${L[tg_project]} <code>${safe_project}</code>
+${L[tg_size]} <code>${safe_size}</code>
+${L[tg_date]} <code>${safe_now}</code>
+✅ <b>Успешно:</b> ${safe_ok_text}"
         [[ -n "$fail_csv" ]] && text+="
-⚠️ ${fail_text}"
+⚠️ <b>Ошибки:</b> ${safe_fail_text}"
     else
-        text="✅ <b>Backup</b> <code>${project_name}</code> • <code>${size}</code>
-✅ ${ok_text}"
+        text="✅ <b>Backup completed</b>
+${L[tg_project]} <code>${safe_project}</code>
+${L[tg_size]} <code>${safe_size}</code>
+${L[tg_date]} <code>${safe_now}</code>
+✅ <b>Success:</b> ${safe_ok_text}"
         [[ -n "$fail_csv" ]] && text+="
-⚠️ ${fail_text}"
+⚠️ <b>Failed:</b> ${safe_fail_text}"
     fi
     [[ -n "$note" ]] && text+="
-${note}"
+ℹ️ ${safe_note}"
     printf '%s' "$text"
 }
 
@@ -2966,19 +3018,25 @@ tg_notify_backup_compact() {
 tg_notify_backup_batch_summary() {
     local ok_projects="$1"
     local fail_projects="$2"
-    local msg
+    local msg safe_ok safe_fail now safe_now
     [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && return 0
+    safe_ok="$(_tg_escape_html "${ok_projects:-—}")"
+    safe_fail="$(_tg_escape_html "$fail_projects")"
+    now="$(_tg_now)"
+    safe_now="$(_tg_escape_html "$now")"
 
     if [[ "$CFG_LANG" == "ru" ]]; then
-        msg="📦 <b>Бэкап проектов</b>
-✅ ${ok_projects:-—}"
+        msg="📦 <b>Сводка бэкапа проектов</b>
+${L[tg_date]} <code>${safe_now}</code>
+✅ <b>Успешно:</b> <code>${safe_ok}</code>"
         [[ -n "$fail_projects" ]] && msg+="
-❌ ${fail_projects}"
+❌ <b>С ошибками:</b> <code>${safe_fail}</code>"
     else
-        msg="📦 <b>Projects backup</b>
-✅ ${ok_projects:-—}"
+        msg="📦 <b>Projects backup summary</b>
+${L[tg_date]} <code>${safe_now}</code>
+✅ <b>Succeeded:</b> <code>${safe_ok}</code>"
         [[ -n "$fail_projects" ]] && msg+="
-❌ ${fail_projects}"
+❌ <b>Failed:</b> <code>${safe_fail}</code>"
     fi
     tg_send_message "$msg"
 }
@@ -2986,9 +3044,25 @@ tg_notify_backup_batch_summary() {
 # Уведомление об ошибке
 tg_notify_error() {
     local msg="$1"
+    local safe_project safe_msg now safe_now notify_msg
     [[ "${TG_SUPPRESS_SUCCESS_TEXT:-false}" == "true" ]] && return 0
     [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && return 0
-    tg_send_message "❌ <b>${CFG_PROJECT_NAME}</b>: ${msg}"
+    safe_project="$(_tg_escape_html "$CFG_PROJECT_NAME")"
+    safe_msg="$(_tg_escape_html "$msg")"
+    now="$(_tg_now)"
+    safe_now="$(_tg_escape_html "$now")"
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        notify_msg="❌ <b>Ошибка бэкапа</b>
+${L[tg_project]} <code>${safe_project}</code>
+${L[tg_date]} <code>${safe_now}</code>
+Детали: ${safe_msg}"
+    else
+        notify_msg="❌ <b>Backup error</b>
+${L[tg_project]} <code>${safe_project}</code>
+${L[tg_date]} <code>${safe_now}</code>
+Details: ${safe_msg}"
+    fi
+    tg_send_message "$notify_msg"
 }
 
 # Уведомление о доступном обновлении
@@ -2996,16 +3070,49 @@ tg_notify_update() {
     local current="$1"
     local latest="$2"
     local changelog="$3"
-    local msg
+    local msg safe_current safe_latest safe_changelog now safe_now
+    safe_current="$(_tg_escape_html "$current")"
+    safe_latest="$(_tg_escape_html "$latest")"
+    safe_changelog="$(_tg_escape_html "$changelog")"
+    now="$(_tg_now)"
+    safe_now="$(_tg_escape_html "$now")"
     msg="🔔 <b>${L[tg_update_avail]}</b>
-${L[tg_cur_ver]} <code>${current}</code>
-${L[tg_new_ver]} <code>${latest}</code>
+${L[tg_cur_ver]} <code>${safe_current}</code>
+${L[tg_new_ver]} <code>${safe_latest}</code>
+${L[tg_date]} <code>${safe_now}</code>
 ${L[tg_update_menu]}"
     [[ -n "$changelog" ]] && msg+="
 
 ${L[tg_auto_update_changelog]}
-${changelog}"
+${safe_changelog}"
     tg_send_message "$msg"
+}
+
+tg_test_notification() {
+    [[ -z "$CFG_BOT_TOKEN" || -z "$CFG_CHAT_ID" ]] && { log_error "${L[st_tg_test_missing]}"; return 1; }
+
+    log_step "${L[st_tg_testing]}"
+    local now now_safe project_name_safe msg
+    now="$(_tg_now)"
+    now_safe="$(_tg_escape_html "$now")"
+    project_name_safe="$(_tg_escape_html "${CFG_PROJECT_NAME:-default}")"
+
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        msg="🧪 <b>Тест уведомлений Telegram</b>
+${L[tg_project]} <code>${project_name_safe}</code>
+${L[tg_date]} <code>${now_safe}</code>"
+    else
+        msg="🧪 <b>Telegram notification test</b>
+${L[tg_project]} <code>${project_name_safe}</code>
+${L[tg_date]} <code>${now_safe}</code>"
+    fi
+
+    if tg_send_message "$msg"; then
+        log_info "${L[st_tg_test_ok]}"
+        return 0
+    fi
+    log_error "${L[st_tg_test_fail]}"
+    return 1
 }
 
 ###############################################################################
@@ -4410,9 +4517,12 @@ _restore_from_archive() {
     else
         echo ""
         log_info "${L[rs_complete]}"
+        local restore_project_safe restore_date_safe
+        restore_project_safe="$(_tg_escape_html "$CFG_PROJECT_NAME")"
+        restore_date_safe="$(_tg_escape_html "$(date '+%Y-%m-%d %H:%M:%S')")"
         tg_send_message "✅ <b>${L[tg_restore_done]}</b>
-${L[tg_project]} <code>${CFG_PROJECT_NAME}</code>
-${L[tg_date]} <code>$(date '+%Y-%m-%d %H:%M:%S')</code>"
+${L[tg_project]} <code>${restore_project_safe}</code>
+${L[tg_date]} <code>${restore_date_safe}</code>"
     fi
 }
 
@@ -5142,8 +5252,8 @@ _settings_telegram() {
         echo -e "  ${L[st_tg_proxy]}  ${CFG_TG_PROXY:-${L[not_set]}}"
         echo -e "  ${L[cron_tg_mode]} ${BRIGHT_YELLOW}${L[tg_mode_${CFG_TELEGRAM_SEND_MODE}]}${NC}"
         echo ""
-        _menu_select "1 2 3 4 5 0" "1" \
-            "${L[st_tg_change_token]}" "${L[st_tg_change_id]}" "${L[st_tg_change_thread]}" "${L[st_tg_change_proxy]}" "${L[cron_toggle_tg_mode]}" "${L[back]}"
+        _menu_select "1 2 3 4 5 6 0" "1" \
+            "${L[st_tg_change_token]}" "${L[st_tg_change_id]}" "${L[st_tg_change_thread]}" "${L[st_tg_change_proxy]}" "${L[cron_toggle_tg_mode]}" "${L[st_tg_test]}" "${L[back]}"
         choice="$MENU_CHOICE"
         case "$choice" in
             1)
@@ -5175,6 +5285,7 @@ _settings_telegram() {
                 fi
                 log_info "${L[tg_mode_changed]} ${L[tg_mode_${CFG_TELEGRAM_SEND_MODE}]}"
                 ;;
+            6) tg_test_notification ;;
             0) return ;;
             *) log_warn "${L[invalid_input_select]}" ;;
         esac
