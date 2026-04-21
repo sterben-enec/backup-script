@@ -801,11 +801,11 @@ L[cron_off]="Automatic backup disabled."
 L[cron_enable]="Enable / overwrite schedule"
 L[cron_disable]="Disable automatic backup"
 L[cron_variant]="Select schedule type:"
-L[cron_time]="Enter daily backup hour (0-23 or 24 for midnight)"
+L[cron_time]="Enter daily backup hour (1-24, where 24 means midnight)"
 L[cron_hourly]="Hourly"
 L[cron_daily]="Daily"
 L[cron_enter_utc]="Enter daily hour in UTC+0."
-L[cron_time_space]="Hour (0-23 or 24 for midnight, Enter — %s): "
+L[cron_time_space]="Hour (1-24, where 24 = midnight, Enter — %s): "
 L[cron_bad_value]="Invalid time value:"
 L[cron_hm_range]="(hour must be in range 1-24, where 24 = midnight)."
 L[cron_bad_fmt]="Invalid time format:"
@@ -879,7 +879,7 @@ L[ul_scope_global_saved]="Global delivery methods updated:"
 L[ul_scope_local_saved]="Project delivery methods updated:"
 L[ul_reconfigure_s3_q]="Reconfigure S3 credentials now?"
 L[ul_reconfigure_gd_q]="Reconfigure Google Drive credentials now?"
-L[nl_title]="Notification delivery methods"
+L[nl_title]="Notification methods"
 L[nl_current]="Current notification methods:"
 L[nl_multi_saved]="Notification methods updated:"
 L[nl_multi_need_one]="Select at least one notification method."
@@ -1032,7 +1032,7 @@ L[st_project_mode_backup]="Backup"
 L[st_project_mode_sender]="Sender"
 L[st_project_dir]="Project directory:"
 L[st_project_sender_dir]="Sender source directory:"
-L[st_project_delivery_source]="Delivery methods source:"
+L[st_project_delivery_source]="Delivery source:"
 L[st_project_dir_mode]="Directory backup mode:"
 L[st_project_dir_items]="Selected items:"
 L[st_project_change_name]="Change project name"
@@ -1040,9 +1040,9 @@ L[st_project_change_mode]="Change project mode"
 L[st_project_change_dir]="Change project directory"
 L[st_project_change_sender_dir]="Change sender source directory"
 L[st_project_change_delivery_scope]="Change delivery source"
-L[st_project_delivery_settings]="Project delivery methods"
-L[st_project_delivery_paths]="Project delivery directories"
-L[st_project_delivery_paths_hint]="Per-project S3 Prefix / Google Drive Folder are configured in Project settings."
+L[st_project_delivery_settings]="Delivery methods"
+L[st_project_delivery_paths]="Delivery directories"
+L[st_project_delivery_paths_hint]="S3 prefix / Google Drive folder are set in Project settings."
 L[st_project_change_scope]="Choose what to backup from directory"
 L[st_project_disable_dir]="Disable directory backup"
 L[st_project_enable_dir]="Enable directory backup"
@@ -1519,11 +1519,11 @@ L[cron_off]="Автоматический бэкап выключен."
 L[cron_enable]="Включить / перезаписать расписание"
 L[cron_disable]="Выключить автоматический бэкап"
 L[cron_variant]="Выберите вариант расписания:"
-L[cron_time]="Введите час ежедневного бэкапа (0-23 или 24 для полуночи)"
+L[cron_time]="Введите час ежедневного бэкапа (1-24, где 24 — полночь)"
 L[cron_hourly]="Ежечасно"
 L[cron_daily]="Ежедневно"
 L[cron_enter_utc]="Введите час ежедневного запуска по UTC+0."
-L[cron_time_space]="Час (0-23 или 24 для полуночи, Enter — %s): "
+L[cron_time_space]="Час (1-24, где 24 = полночь, Enter — %s): "
 L[cron_bad_value]="Неверное значение времени:"
 L[cron_hm_range]="(час должен быть в диапазоне 1-24, где 24 = полночь)."
 L[cron_bad_fmt]="Неверный формат времени:"
@@ -1597,9 +1597,9 @@ L[ul_scope_global_saved]="Глобальные способы доставки �
 L[ul_scope_local_saved]="Способы доставки проекта обновлены:"
 L[ul_reconfigure_s3_q]="Перенастроить доступы S3 сейчас?"
 L[ul_reconfigure_gd_q]="Перенастроить доступы Google Drive сейчас?"
-L[nl_title]="Настройка способов отправки уведомлений"
-L[nl_current]="Текущие способы уведомлений:"
-L[nl_multi_saved]="Способы уведомлений обновлены:"
+L[nl_title]="Способы отправки уведомлений"
+L[nl_current]="Текущие способы отправки уведомлений:"
+L[nl_multi_saved]="Способы отправки уведомлений обновлены:"
 L[nl_multi_need_one]="Выберите хотя бы один способ уведомлений."
 
 # Настройки конфигурации
@@ -1750,7 +1750,7 @@ L[st_project_mode_backup]="Бэкап"
 L[st_project_mode_sender]="Sender"
 L[st_project_dir]="Директория проекта:"
 L[st_project_sender_dir]="Директория sender:"
-L[st_project_delivery_source]="Источник способов доставки:"
+L[st_project_delivery_source]="Источник доставки:"
 L[st_project_dir_mode]="Режим бэкапа директории:"
 L[st_project_dir_items]="Выбранные элементы:"
 L[st_project_change_name]="Изменить имя проекта"
@@ -1758,9 +1758,9 @@ L[st_project_change_mode]="Изменить режим проекта"
 L[st_project_change_dir]="Изменить директорию проекта"
 L[st_project_change_sender_dir]="Изменить директорию sender"
 L[st_project_change_delivery_scope]="Изменить источник доставки"
-L[st_project_delivery_settings]="Способы доставки проекта"
-L[st_project_delivery_paths]="Директории доставки проекта"
-L[st_project_delivery_paths_hint]="S3 Prefix / Google Drive Folder задаются в настройках проекта."
+L[st_project_delivery_settings]="Способы доставки"
+L[st_project_delivery_paths]="Директории доставки"
+L[st_project_delivery_paths_hint]="Префикс S3 / папка Google Drive задаются в настройках проекта."
 L[st_project_change_scope]="Выбрать что бэкапить из директории"
 L[st_project_disable_dir]="Отключить бэкап директории"
 L[st_project_enable_dir]="Включить бэкап директории"
@@ -6085,6 +6085,7 @@ _settings_project() {
         local project_mode
         local delivery_methods_label
         local delivery_methods_target
+        local show_delivery_paths
         project_mode="$(_normalize_project_mode "${CFG_PROJECT_MODE:-backup}")"
         if [[ "${CFG_USE_GLOBAL_UPLOAD_METHOD:-false}" == "true" ]]; then
             delivery_methods_label="${L[st_project_delivery_settings]} (${L[ul_scope_project_global]})"
@@ -6092,6 +6093,10 @@ _settings_project() {
         else
             delivery_methods_label="${L[st_project_delivery_settings]} (${L[ul_scope_project_local]})"
             delivery_methods_target="project"
+        fi
+        show_delivery_paths="true"
+        if [[ "$project_mode" == "sender" && "${CFG_USE_GLOBAL_UPLOAD_METHOD:-false}" == "true" ]]; then
+            show_delivery_paths="false"
         fi
         _section_header "[P]" "${L[st_project_title]}"
         echo -e "  ID: ${CYAN}${CFG_ACTIVE_PROJECT:-${L[not_set]}}${NC}"
@@ -6104,8 +6109,10 @@ _settings_project() {
         echo -e "  ${L[st_project_mode]} ${BRIGHT_YELLOW}$(_project_mode_label "$project_mode")${NC}"
         echo -e "  ${L[st_project_delivery_source]} ${BRIGHT_YELLOW}$(_delivery_scope_label "${CFG_USE_GLOBAL_UPLOAD_METHOD:-false}")${NC}"
         echo -e "  ${L[ul_current]} ${BRIGHT_YELLOW}$(_upload_methods_text "$(_effective_upload_methods)")${NC}"
-        echo -e "  ${L[st_s3_prefix]} ${BRIGHT_YELLOW}${CFG_S3_PREFIX:-${L[not_set]}}${NC}"
-        echo -e "  ${L[st_gd_folder]} ${BRIGHT_YELLOW}${CFG_GD_FOLDER_ID:-${L[not_set]}}${NC}"
+        if [[ "$show_delivery_paths" == "true" ]]; then
+            echo -e "  ${L[st_s3_prefix]} ${BRIGHT_YELLOW}${CFG_S3_PREFIX:-${L[not_set]}}${NC}"
+            echo -e "  ${L[st_gd_folder]} ${BRIGHT_YELLOW}${CFG_GD_FOLDER_ID:-${L[not_set]}}${NC}"
+        fi
         if [[ "$project_mode" == "sender" ]]; then
             echo -e "  ${L[st_project_sender_dir]} ${CFG_SENDER_SOURCE_DIR:-${L[not_set]}}"
         else
@@ -6114,16 +6121,28 @@ _settings_project() {
         fi
         echo ""
         if [[ "$project_mode" == "sender" ]]; then
-            _menu_select "1 2 3 4 5 6 7 8 0" "1" \
-                "${L[st_project_toggle_backup]}" \
-                "${L[st_project_change_name]}" \
-                "${L[st_project_change_mode]}" \
-                "${L[st_project_change_sender_dir]}" \
-                "${L[st_project_change_delivery_scope]}" \
-                "${delivery_methods_label}" \
-                "${L[st_project_delivery_paths]}" \
-                "${L[st_project_remove]}" \
-                "${L[back]}"
+            if [[ "$show_delivery_paths" == "true" ]]; then
+                _menu_select "1 2 3 4 5 6 7 8 0" "1" \
+                    "${L[st_project_toggle_backup]}" \
+                    "${L[st_project_change_name]}" \
+                    "${L[st_project_change_mode]}" \
+                    "${L[st_project_change_sender_dir]}" \
+                    "${L[st_project_change_delivery_scope]}" \
+                    "${delivery_methods_label}" \
+                    "${L[st_project_delivery_paths]}" \
+                    "${L[st_project_remove]}" \
+                    "${L[back]}"
+            else
+                _menu_select "1 2 3 4 5 6 7 0" "1" \
+                    "${L[st_project_toggle_backup]}" \
+                    "${L[st_project_change_name]}" \
+                    "${L[st_project_change_mode]}" \
+                    "${L[st_project_change_sender_dir]}" \
+                    "${L[st_project_change_delivery_scope]}" \
+                    "${delivery_methods_label}" \
+                    "${L[st_project_remove]}" \
+                    "${L[back]}"
+            fi
         else
             _menu_select "1 2 3 4 5 6 7 8 9 10 0" "1" \
                 "${L[st_project_toggle_backup]}" \
@@ -6183,13 +6202,20 @@ _settings_project() {
                 ;;
             7)
                 if [[ "$project_mode" == "sender" ]]; then
-                    _settings_project_delivery_paths
+                    if [[ "$show_delivery_paths" == "true" ]]; then
+                        _settings_project_delivery_paths
+                    else
+                        if _settings_project_delete_current; then
+                            return
+                        fi
+                    fi
                 else
                     _settings_project_change_delivery_scope
                 fi
                 ;;
             8)
                 if [[ "$project_mode" == "sender" ]]; then
+                    [[ "$show_delivery_paths" != "true" ]] && continue
                     if _settings_project_delete_current; then
                         return
                     fi
