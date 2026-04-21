@@ -595,6 +595,9 @@ L[cfg_enter_thread]="Enter Message Thread ID: "
 # Project settings
 L[cfg_project_name]="Enter project name (used in backup filename): "
 L[cfg_project_dir]="Enter path to project directory: "
+L[cfg_project_mode_backup]="Classic backup mode (DB/files)"
+L[cfg_project_mode_sender]="Sender mode (send latest archive)"
+L[cfg_sender_source_dir]="Enter path to directory with ready archives: "
 L[cfg_path_empty]="Path cannot be empty."
 L[cfg_path_abs]="Path must be absolute (start with /)."
 L[cfg_dir_missing]="Directory does not exist."
@@ -714,6 +717,10 @@ L[bk_retention_kept]="Kept backups: hourly %s, daily %s."
 L[bk_retention_deleted]="Deleted local backups: %s"
 L[bk_retention_skip_manual]="Retention skipped for manual backup run."
 L[bk_mkdir_err]="Failed to create backup directory"
+L[bk_sender_dir_missing]="Sender source directory is missing:"
+L[bk_sender_no_files]="No archive files found in sender directory:"
+L[bk_sender_selected]="Selected latest archive:"
+L[bk_sender_no_new]="No new archive to send. Last sent remains:"
 
 # Telegram notifications
 L[tg_bk_success]="Backup successfully created"
@@ -1006,11 +1013,17 @@ L[st_db_only_ext]="Test available for external DB only."
 
 L[st_project_title]="Project settings"
 L[st_project_name]="Project name:"
+L[st_project_mode]="Project mode:"
+L[st_project_mode_backup]="Backup"
+L[st_project_mode_sender]="Sender"
 L[st_project_dir]="Project directory:"
+L[st_project_sender_dir]="Sender source directory:"
 L[st_project_dir_mode]="Directory backup mode:"
 L[st_project_dir_items]="Selected items:"
 L[st_project_change_name]="Change project name"
+L[st_project_change_mode]="Change project mode"
 L[st_project_change_dir]="Change project directory"
+L[st_project_change_sender_dir]="Change sender source directory"
 L[st_project_change_scope]="Choose what to backup from directory"
 L[st_project_disable_dir]="Disable directory backup"
 L[st_project_enable_dir]="Enable directory backup"
@@ -1018,6 +1031,9 @@ L[st_project_enter_name]="Enter new project name: "
 L[st_project_name_ok]="Project name updated."
 L[st_project_enter_dir]="Enter new directory path: "
 L[st_project_dir_ok]="Directory updated."
+L[st_project_enter_sender_dir]="Enter new sender source directory: "
+L[st_project_sender_dir_ok]="Sender source directory updated."
+L[st_project_mode_ok]="Project mode updated:"
 L[st_project_dir_disabled]="Directory backup disabled."
 L[st_project_dir_enabled]="Directory backup enabled."
 L[st_project_scope_saved]="Directory backup scope saved."
@@ -1277,6 +1293,9 @@ L[cfg_enter_thread]="Введите Message Thread ID: "
 # Настройки проекта
 L[cfg_project_name]="Введите имя проекта (используется в имени файла бэкапа): "
 L[cfg_project_dir]="Введите путь к директории проекта: "
+L[cfg_project_mode_backup]="Классический режим бэкапа (БД/файлы)"
+L[cfg_project_mode_sender]="Режим sender (отправка свежего архива)"
+L[cfg_sender_source_dir]="Введите путь к директории с готовыми архивами: "
 L[cfg_path_empty]="Путь не может быть пустым."
 L[cfg_path_abs]="Путь должен быть абсолютным (начинаться с /)."
 L[cfg_dir_missing]="Директория не существует."
@@ -1396,6 +1415,10 @@ L[bk_retention_kept]="Оставлено бэкапов: ежечасных %s, 
 L[bk_retention_deleted]="Удалено локальных бэкапов: %s"
 L[bk_retention_skip_manual]="Политика хранения пропущена для ручного бэкапа."
 L[bk_mkdir_err]="Не удалось создать каталог бэкапов"
+L[bk_sender_dir_missing]="Не задана директория sender:"
+L[bk_sender_no_files]="В директории sender не найдено архивов:"
+L[bk_sender_selected]="Выбран свежий архив:"
+L[bk_sender_no_new]="Нового архива нет. Последний отправленный:"
 
 # Telegram уведомления
 L[tg_bk_success]="Бэкап успешно создан"
@@ -1688,11 +1711,17 @@ L[st_db_only_ext]="Тест доступен только для внешней 
 
 L[st_project_title]="Настройки проекта"
 L[st_project_name]="Имя проекта:"
+L[st_project_mode]="Режим проекта:"
+L[st_project_mode_backup]="Бэкап"
+L[st_project_mode_sender]="Sender"
 L[st_project_dir]="Директория проекта:"
+L[st_project_sender_dir]="Директория sender:"
 L[st_project_dir_mode]="Режим бэкапа директории:"
 L[st_project_dir_items]="Выбранные элементы:"
 L[st_project_change_name]="Изменить имя проекта"
+L[st_project_change_mode]="Изменить режим проекта"
 L[st_project_change_dir]="Изменить директорию проекта"
+L[st_project_change_sender_dir]="Изменить директорию sender"
 L[st_project_change_scope]="Выбрать что бэкапить из директории"
 L[st_project_disable_dir]="Отключить бэкап директории"
 L[st_project_enable_dir]="Включить бэкап директории"
@@ -1700,6 +1729,9 @@ L[st_project_enter_name]="Введите новое имя проекта: "
 L[st_project_name_ok]="Имя проекта обновлено."
 L[st_project_enter_dir]="Введите новый путь к директории: "
 L[st_project_dir_ok]="Директория обновлена."
+L[st_project_enter_sender_dir]="Введите новый путь к директории sender: "
+L[st_project_sender_dir_ok]="Директория sender обновлена."
+L[st_project_mode_ok]="Режим проекта обновлён:"
 L[st_project_dir_disabled]="Бэкап директории отключен."
 L[st_project_dir_enabled]="Бэкап директории включен."
 L[st_project_scope_saved]="Область бэкапа директории сохранена."
@@ -1927,7 +1959,9 @@ CFG_DB_PGVER="17"
 
 # Проект (профиль проекта)
 CFG_PROJECT_NAME=""
+CFG_PROJECT_MODE="backup"          # backup | sender
 CFG_PROJECT_DIR=""
+CFG_SENDER_SOURCE_DIR=""
 CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
 CFG_SCHEDULE_HOURLY_ENABLED="true"
 CFG_SCHEDULE_DAILY_ENABLED="false"
@@ -1977,6 +2011,14 @@ _normalize_run_mode() {
     case "$value" in
         scheduled) echo "scheduled" ;;
         *) echo "manual" ;;
+    esac
+}
+
+_normalize_project_mode() {
+    local value="${1:-backup}"
+    case "$value" in
+        sender) echo "sender" ;;
+        *) echo "backup" ;;
     esac
 }
 
@@ -2047,6 +2089,15 @@ _period_label() {
         week) echo "${L[period_week]}" ;;
         month) echo "${L[period_month]}" ;;
         *) echo "$1" ;;
+    esac
+}
+
+_project_mode_label() {
+    local mode
+    mode="$(_normalize_project_mode "${1:-backup}")"
+    case "$mode" in
+        sender) echo "${L[st_project_mode_sender]}" ;;
+        *) echo "${L[st_project_mode_backup]}" ;;
     esac
 }
 
@@ -2294,7 +2345,9 @@ reset_project_profile_defaults() {
     CFG_DB_PGVER="17"
 
     CFG_PROJECT_NAME=""
+    CFG_PROJECT_MODE="backup"
     CFG_PROJECT_DIR=""
+    CFG_SENDER_SOURCE_DIR=""
     CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
     CFG_SCHEDULE_HOURLY_ENABLED="true"
     CFG_SCHEDULE_DAILY_ENABLED="false"
@@ -2388,7 +2441,8 @@ _migrate_project_ids_to_numeric() {
             for old_id in "${!migrated[@]}"; do
                 new_id="${migrated[$old_id]}"
                 cron_new="${cron_new//--project ${old_id} /--project ${new_id} }"
-                cron_new="${cron_new// # universal-backup: ${old_id}/ # universal-backup: ${new_id}}"
+                cron_new="${cron_new// # backrest: ${old_id}/ # backrest: ${new_id}}"
+                cron_new="${cron_new// # universal-backup: ${old_id}/ # backrest: ${new_id}}"
             done
             if [[ "$cron_new" != "$cron_now" ]]; then
                 printf '%s\n' "$cron_new" | crontab - 2>/dev/null || true
@@ -2455,6 +2509,7 @@ save_project_config() {
     mkdir -p "$PROJECTS_DIR" || return 1
 
     CFG_UPLOAD_METHOD="$(_normalize_upload_methods "${CFG_UPLOAD_METHOD:-}")"
+    CFG_PROJECT_MODE="$(_normalize_project_mode "${CFG_PROJECT_MODE:-backup}")"
     CFG_SCHEDULE_HOURLY_ENABLED="$(_normalize_bool "${CFG_SCHEDULE_HOURLY_ENABLED:-true}" "true")"
     CFG_SCHEDULE_DAILY_ENABLED="$(_normalize_bool "${CFG_SCHEDULE_DAILY_ENABLED:-false}" "false")"
     CFG_TELEGRAM_SEND_MODE="$(_normalize_tg_send_mode "${CFG_TELEGRAM_SEND_MODE:-weekly}")"
@@ -2506,7 +2561,9 @@ save_project_config() {
 
         printf '# Project\n'
         printf 'CFG_PROJECT_NAME=%s\n'       "$(printf '%q' "$CFG_PROJECT_NAME")"
+        printf 'CFG_PROJECT_MODE=%s\n'       "$CFG_PROJECT_MODE"
         printf 'CFG_PROJECT_DIR=%s\n'        "$(printf '%q' "$CFG_PROJECT_DIR")"
+        printf 'CFG_SENDER_SOURCE_DIR=%s\n'  "$(printf '%q' "$CFG_SENDER_SOURCE_DIR")"
         printf 'CFG_BACKUP_DIR=%s\n'         "$(printf '%q' "$CFG_BACKUP_DIR")"
         printf 'CFG_SCHEDULE_HOURLY_ENABLED=%s\n' "$CFG_SCHEDULE_HOURLY_ENABLED"
         printf 'CFG_SCHEDULE_DAILY_ENABLED=%s\n' "$CFG_SCHEDULE_DAILY_ENABLED"
@@ -2535,11 +2592,13 @@ load_project_config() {
     # shellcheck source=/dev/null
     source "$project_file"
     CFG_UPLOAD_METHOD="$(_normalize_upload_methods "${CFG_UPLOAD_METHOD:-}")"
+    CFG_PROJECT_MODE="$(_normalize_project_mode "${CFG_PROJECT_MODE:-backup}")"
     CFG_PROJECT_ENABLED="${CFG_PROJECT_ENABLED:-true}"
     CFG_BACKUP_DB_ENABLED="${CFG_BACKUP_DB_ENABLED:-true}"
     CFG_BACKUP_DIR_ENABLED="${CFG_BACKUP_DIR_ENABLED:-true}"
     CFG_BACKUP_DIR_MODE="${CFG_BACKUP_DIR_MODE:-full}"
     CFG_BACKUP_DIR_ITEMS="${CFG_BACKUP_DIR_ITEMS:-}"
+    CFG_SENDER_SOURCE_DIR="${CFG_SENDER_SOURCE_DIR:-}"
     CFG_SCHEDULE_HOURLY_ENABLED="$(_normalize_bool "${CFG_SCHEDULE_HOURLY_ENABLED:-true}" "true")"
     CFG_SCHEDULE_DAILY_ENABLED="$(_normalize_bool "${CFG_SCHEDULE_DAILY_ENABLED:-false}" "false")"
     CFG_TELEGRAM_SEND_MODE="$(_normalize_tg_send_mode "${CFG_TELEGRAM_SEND_MODE:-weekly}")"
@@ -2664,28 +2723,53 @@ _configure_project_wizard() {
     read -rp "${L[cfg_project_name]}" CFG_PROJECT_NAME
     [[ -z "$CFG_PROJECT_NAME" ]] && CFG_PROJECT_NAME="backup"
 
-    # Директория проекта
-    while true; do
-        CFG_PROJECT_DIR=$(input_path "${L[cfg_project_dir]}" false)
-        if [[ -d "$CFG_PROJECT_DIR" ]]; then
-            break
-        else
+    echo ""
+    _menu_select "1 2" "1" "${L[cfg_project_mode_backup]}" "${L[cfg_project_mode_sender]}"
+    case "$MENU_CHOICE" in
+        2) CFG_PROJECT_MODE="sender" ;;
+        *) CFG_PROJECT_MODE="backup" ;;
+    esac
+
+    CFG_PROJECT_ENABLED="true"
+    CFG_BACKUP_DIR="${DEFAULT_BACKUP_DIR}"
+    CFG_SENDER_SOURCE_DIR=""
+
+    if [[ "$CFG_PROJECT_MODE" == "sender" ]]; then
+        while true; do
+            CFG_SENDER_SOURCE_DIR="$(input_path "${L[cfg_sender_source_dir]}" false)"
+            if [[ -d "$CFG_SENDER_SOURCE_DIR" ]]; then
+                break
+            fi
             log_warn "${L[cfg_dir_missing]}"
             confirm "${L[cfg_continue_path]}" && break
-        fi
-    done
+        done
+        CFG_DB_TYPE="none"
+        CFG_BACKUP_DB_ENABLED="false"
+        CFG_BACKUP_DIR_ENABLED="false"
+        CFG_BACKUP_DIR_MODE="full"
+        CFG_BACKUP_DIR_ITEMS=""
+        CFG_PROJECT_DIR=""
+    else
+        # Директория проекта
+        while true; do
+            CFG_PROJECT_DIR=$(input_path "${L[cfg_project_dir]}" false)
+            if [[ -d "$CFG_PROJECT_DIR" ]]; then
+                break
+            else
+                log_warn "${L[cfg_dir_missing]}"
+                confirm "${L[cfg_continue_path]}" && break
+            fi
+        done
 
-    # По умолчанию бэкап директории целиком
-    CFG_PROJECT_ENABLED="true"
-    CFG_BACKUP_DB_ENABLED="true"
-    CFG_BACKUP_DIR_ENABLED="true"
-    CFG_BACKUP_DIR_MODE="full"
-    CFG_BACKUP_DIR_ITEMS=""
+        # По умолчанию бэкап директории целиком
+        CFG_BACKUP_DB_ENABLED="true"
+        CFG_BACKUP_DIR_ENABLED="true"
+        CFG_BACKUP_DIR_MODE="full"
+        CFG_BACKUP_DIR_ITEMS=""
 
-    CFG_BACKUP_DIR="${DEFAULT_BACKUP_DIR}"
-
-    # БД
-    setup_db_wizard
+        # БД
+        setup_db_wizard
+    fi
 
     # Способ отправки
     setup_upload_method_wizard
@@ -3906,6 +3990,199 @@ db_test_connection() {
 ###############################################################################
 # Логика создания резервной копии
 
+_file_mtime_epoch() {
+    local file="$1"
+    stat -c '%Y' "$file" 2>/dev/null || stat -f '%m' "$file" 2>/dev/null || echo "0"
+}
+
+_file_size_bytes() {
+    local file="$1"
+    stat -c '%s' "$file" 2>/dev/null || stat -f '%z' "$file" 2>/dev/null || echo "0"
+}
+
+_sender_is_archive_file() {
+    local file="$1"
+    local name lower
+    name="$(basename "$file")"
+    lower="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')"
+    case "$lower" in
+        *.tar|*.tar.gz|*.tgz|*.zip|*.7z|*.rar|*.gz|*.bz2|*.xz|*.zst) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+_sender_state_file() {
+    local project_id="${CFG_ACTIVE_PROJECT:-default}"
+    echo "${BACKREST_HOME}/state/sender_${project_id}.state"
+}
+
+_sender_signature() {
+    local file="$1"
+    local mtime size
+    mtime="$(_file_mtime_epoch "$file")"
+    size="$(_file_size_bytes "$file")"
+    printf '%s|%s|%s' "$file" "$size" "$mtime"
+}
+
+_sender_last_signature() {
+    local state_file
+    state_file="$(_sender_state_file)"
+    [[ -f "$state_file" ]] || return 1
+    sed -n '1p' "$state_file"
+}
+
+_sender_save_signature() {
+    local signature="$1"
+    local state_file state_dir
+    state_file="$(_sender_state_file)"
+    state_dir="$(dirname "$state_file")"
+    mkdir -p "$state_dir" 2>/dev/null || true
+    printf '%s\n' "$signature" > "${state_file}.tmp"
+    mv -f "${state_file}.tmp" "$state_file"
+    secure_file "$state_file"
+}
+
+_sender_pick_latest_archive() {
+    local source_dir="$1"
+    local file latest_file="" latest_epoch=0 file_epoch
+    [[ -d "$source_dir" ]] || return 1
+    while IFS= read -r -d '' file; do
+        _sender_is_archive_file "$file" || continue
+        file_epoch="$(_file_mtime_epoch "$file")"
+        [[ -z "$file_epoch" ]] && continue
+        if (( file_epoch > latest_epoch )); then
+            latest_epoch="$file_epoch"
+            latest_file="$file"
+        fi
+    done < <(find "$source_dir" -maxdepth 1 -type f -print0 2>/dev/null)
+    [[ -n "$latest_file" ]] || return 1
+    printf '%s\n' "$latest_file"
+}
+
+_apply_remote_retention() {
+    _apply_remote_retention
+}
+
+_apply_sender_source_retention() {
+    local source_dir="${CFG_SENDER_SOURCE_DIR:-}"
+    local keep_weekly keep_monthly retention_days now cutoff
+    keep_weekly="$(_normalize_bool "${CFG_STORAGE_KEEP_WEEKLY:-true}" "true")"
+    keep_monthly="$(_normalize_bool "${CFG_STORAGE_KEEP_MONTHLY:-true}" "true")"
+    retention_days="$(_normalize_positive_int "${CFG_RETENTION_DAYS:-30}" "30")"
+    now="$(date +%s)"
+    cutoff=$(( now - retention_days * 86400 ))
+
+    [[ -d "$source_dir" ]] || return 0
+
+    declare -A keep_map=()
+    declare -A week_best_epoch=()
+    declare -A week_best_path=()
+    declare -A month_best_epoch=()
+    declare -A month_best_path=()
+    local -a entries=()
+    local latest_epoch=0 latest_path=""
+    local file file_epoch week_key month_key
+
+    while IFS= read -r -d '' file; do
+        _sender_is_archive_file "$file" || continue
+        file_epoch="$(_file_mtime_epoch "$file")"
+        [[ -z "$file_epoch" ]] && continue
+        entries+=("${file_epoch}"$'\t'"${file}")
+
+        if (( file_epoch > latest_epoch )); then
+            latest_epoch="$file_epoch"
+            latest_path="$file"
+        fi
+
+        if [[ "$keep_weekly" != "true" && "$keep_monthly" != "true" ]]; then
+            if (( file_epoch >= cutoff )); then
+                keep_map["$file"]="days"
+            fi
+            continue
+        fi
+
+        if [[ "$keep_weekly" == "true" ]]; then
+            week_key="$(_epoch_format "$file_epoch" "%G-%V")"
+            if [[ -n "$week_key" ]] && (( file_epoch > ${week_best_epoch[$week_key]:-0} )); then
+                week_best_epoch["$week_key"]="$file_epoch"
+                week_best_path["$week_key"]="$file"
+            fi
+        fi
+
+        if [[ "$keep_monthly" == "true" ]]; then
+            month_key="$(_epoch_format "$file_epoch" "%Y-%m")"
+            if [[ -n "$month_key" ]] && (( file_epoch > ${month_best_epoch[$month_key]:-0} )); then
+                month_best_epoch["$month_key"]="$file_epoch"
+                month_best_path["$month_key"]="$file"
+            fi
+        fi
+    done < <(find "$source_dir" -maxdepth 1 -type f -print0 2>/dev/null)
+
+    for week_key in "${!week_best_path[@]}"; do
+        keep_map["${week_best_path[$week_key]}"]="weekly"
+    done
+    for month_key in "${!month_best_path[@]}"; do
+        keep_map["${month_best_path[$month_key]}"]="monthly"
+    done
+    [[ -n "$latest_path" ]] && keep_map["$latest_path"]="latest"
+
+    local deleted=0 entry entry_path
+    for entry in "${entries[@]}"; do
+        IFS=$'\t' read -r _ entry_path <<< "$entry"
+        [[ -n "${keep_map[$entry_path]:-}" ]] && continue
+        rm -f -- "$entry_path" 2>/dev/null && ((deleted++)) || true
+    done
+
+    if [[ "$CFG_LANG" == "ru" ]]; then
+        log_info "Sender retention: сохранено ${#keep_map[@]}, удалено ${deleted}"
+    else
+        log_info "Sender retention: kept ${#keep_map[@]}, deleted ${deleted}"
+    fi
+
+    _apply_remote_retention
+}
+
+_do_sender_backup() {
+    local run_mode="$1"
+    local source_dir latest_archive signature last_signature size
+
+    source_dir="${CFG_SENDER_SOURCE_DIR:-}"
+    if [[ -z "$source_dir" || ! -d "$source_dir" ]]; then
+        log_error "${L[bk_sender_dir_missing]} ${source_dir:-${L[not_set]}}"
+        return 1
+    fi
+
+    latest_archive="$(_sender_pick_latest_archive "$source_dir" || true)"
+    if [[ -z "$latest_archive" ]]; then
+        log_warn "${L[bk_sender_no_files]} $source_dir"
+        return 1
+    fi
+
+    signature="$(_sender_signature "$latest_archive")"
+    last_signature="$(_sender_last_signature || true)"
+    if [[ -n "$last_signature" && "$signature" == "$last_signature" ]]; then
+        log_info "${L[bk_sender_no_new]} $(basename "$latest_archive")"
+        if [[ "$run_mode" == "scheduled" ]]; then
+            _apply_sender_source_retention
+        fi
+        return 0
+    fi
+
+    size="$(format_size "$latest_archive")"
+    log_step "${L[bk_sender_selected]} ${latest_archive} (${size})"
+    if _send_backup "$latest_archive"; then
+        _sender_save_signature "$signature"
+        if [[ "$run_mode" == "scheduled" ]]; then
+            _apply_sender_source_retention
+        else
+            log_info "${L[bk_retention_skip_manual]}"
+        fi
+        return 0
+    fi
+
+    return 1
+}
+
 # ─────────────────────────────────────────────
 # Основная функция создания бэкапа
 # ─────────────────────────────────────────────
@@ -3920,6 +4197,10 @@ do_backup() {
     fi
     local run_mode archive_prefix
     run_mode="$(_normalize_run_mode "${BACKUP_RUN_MODE:-manual}")"
+    if [[ "$(_normalize_project_mode "${CFG_PROJECT_MODE:-backup}")" == "sender" ]]; then
+        _do_sender_backup "$run_mode"
+        return $?
+    fi
     archive_prefix="${CFG_PROJECT_NAME}"
     if [[ "$run_mode" != "scheduled" ]]; then
         archive_prefix="${archive_prefix}_manual"
@@ -4468,7 +4749,41 @@ ${L[tg_date]} <code>${restore_date_safe}</code>"
 # Управление cron-расписанием автоматического бэкапа
 
 # Вычисляется лениво, после загрузки конфига
-_cron_marker() { echo "# universal-backup: ${CFG_ACTIVE_PROJECT:-default}"; }
+_cron_marker() { echo "# backrest: ${CFG_ACTIVE_PROJECT:-default}"; }
+
+_cron_project_match_key() {
+    local value="$1"
+    value="$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')"
+    # Для устойчивого сравнения убираем "мусорные" символы (в т.ч. mojibake).
+    value="$(printf '%s' "$value" | tr -cd '[:alnum:]_-')"
+    printf '%s' "$value"
+}
+
+_cron_line_matches_project() {
+    local line="$1"
+    local project_id="$2"
+    local project_name="$3"
+    local marker selector
+    local project_id_key project_name_key marker_key selector_key
+
+    [[ "$line" == *"# backrest:"* || "$line" == *"# universal-backup:"* ]] || return 1
+
+    marker="$(printf '%s\n' "$line" | sed -nE 's/.*# (backrest|universal-backup):[[:space:]]*(.*)$/\2/p')"
+    selector="$(printf '%s\n' "$line" | sed -nE 's/.*[[:space:]]--project[[:space:]]+([^[:space:]#]+).*/\1/p')"
+
+    [[ "$marker" == "$project_id" || "$selector" == "$project_id" ]] && return 0
+    [[ -n "$project_name" && ( "$marker" == "$project_name" || "$selector" == "$project_name" ) ]] && return 0
+
+    project_id_key="$(_cron_project_match_key "$project_id")"
+    project_name_key="$(_cron_project_match_key "$project_name")"
+    marker_key="$(_cron_project_match_key "$marker")"
+    selector_key="$(_cron_project_match_key "$selector")"
+
+    [[ -n "$project_id_key" && ( "$marker_key" == "$project_id_key" || "$selector_key" == "$project_id_key" ) ]] && return 0
+    [[ -n "$project_name_key" && ( "$marker_key" == "$project_name_key" || "$selector_key" == "$project_name_key" ) ]] && return 0
+
+    return 1
+}
 
 # ─────────────────────────────────────────────
 # Меню настройки cron
@@ -4617,6 +4932,8 @@ _install_cron() {
     local script_path; script_path=$(realpath "$BACKUP_SCRIPT" 2>/dev/null || echo "$BACKUP_SCRIPT")
     local marker; marker=$(_cron_marker)
     local project_arg="${CFG_ACTIVE_PROJECT:-default}"
+    local project_name
+    project_name="$(project_display_name "$project_arg")"
     # cron_expr может содержать несколько строк (по одной на каждое время)
     local cron_lines=""
     while IFS= read -r expr_line; do
@@ -4626,9 +4943,12 @@ _install_cron() {
 
     log_step "${L[cron_setting]}"
 
-    # Удалить старые записи этого проекта
-    local current_cron
-    current_cron=$({ crontab -l 2>/dev/null || true; } | grep -avF "$marker" || true)
+    # Удалить старые записи этого проекта (включая legacy-идентификаторы).
+    local current_cron="" line
+    while IFS= read -r line; do
+        _cron_line_matches_project "$line" "$project_arg" "$project_name" && continue
+        current_cron+="${line}"$'\n'
+    done < <(crontab -l 2>/dev/null || true)
 
     # Добавить SHELL и PATH если нет
     local new_cron=""
@@ -4656,8 +4976,13 @@ _install_cron() {
 # Выключить автоматический бэкап
 _cron_disable() {
     log_step "${L[cron_disabling]}"
-    local current_cron
-    current_cron=$({ crontab -l 2>/dev/null || true; } | grep -avF "$(_cron_marker)" || true)
+    local project_arg project_name line current_cron=""
+    project_arg="${CFG_ACTIVE_PROJECT:-default}"
+    project_name="$(project_display_name "$project_arg")"
+    while IFS= read -r line; do
+        _cron_line_matches_project "$line" "$project_arg" "$project_name" && continue
+        current_cron+="${line}"$'\n'
+    done < <(crontab -l 2>/dev/null || true)
     if [[ -n "$current_cron" ]]; then
         printf '%s\n' "$current_cron" | crontab -
     else
@@ -4787,6 +5112,14 @@ _perform_update() {
     fi
 
     chmod +x "$script_path"
+    # Обновить версию в памяти, чтобы шапка меню показывала новую без перезапуска процесса.
+    local detected_version
+    detected_version="$(grep -m1 '^# VERSION=' "$script_path" 2>/dev/null | cut -d= -f2)"
+    if [[ -n "$detected_version" ]]; then
+        SCRIPT_VERSION="$detected_version"
+    else
+        SCRIPT_VERSION="$new_version"
+    fi
     log_info "${L[upd_done]} $new_version"
     echo "${L[upd_restart]}"
     press_enter_back
@@ -5639,9 +5972,27 @@ _settings_project_delete_current() {
     return 0
 }
 
+_settings_project_change_mode() {
+    local mode
+    mode="$(_normalize_project_mode "${CFG_PROJECT_MODE:-backup}")"
+    if [[ "$mode" == "sender" ]]; then
+        _menu_select "1 2 0" "2" "${L[cfg_project_mode_backup]}" "${L[cfg_project_mode_sender]}" "${L[back]}"
+    else
+        _menu_select "1 2 0" "1" "${L[cfg_project_mode_backup]}" "${L[cfg_project_mode_sender]}" "${L[back]}"
+    fi
+    case "$MENU_CHOICE" in
+        1) CFG_PROJECT_MODE="backup" ;;
+        2) CFG_PROJECT_MODE="sender" ;;
+        *) return 0 ;;
+    esac
+    log_info "${L[st_project_mode_ok]} $(_project_mode_label "$CFG_PROJECT_MODE")"
+}
+
 _settings_project() {
     while true; do
         clear
+        local project_mode
+        project_mode="$(_normalize_project_mode "${CFG_PROJECT_MODE:-backup}")"
         _section_header "[P]" "${L[st_project_title]}"
         echo -e "  ID: ${CYAN}${CFG_ACTIVE_PROJECT:-${L[not_set]}}${NC}"
         if [[ "${CFG_PROJECT_ENABLED:-true}" == "true" ]]; then
@@ -5650,17 +6001,33 @@ _settings_project() {
             echo -e "  ${L[st_project_backup_status]} ○ ${L[st_project_backup_off]}"
         fi
         echo -e "  ${L[st_project_name]} ${BRIGHT_YELLOW}${CFG_PROJECT_NAME:-${L[not_set]}}${NC}"
-        echo -e "  ${L[st_project_dir]}  ${CFG_PROJECT_DIR:-${L[not_set]}}"
-        echo -e "  ${L[st_project_dir_items]} $(_project_selected_items_preview)"
+        echo -e "  ${L[st_project_mode]} ${BRIGHT_YELLOW}$(_project_mode_label "$project_mode")${NC}"
+        if [[ "$project_mode" == "sender" ]]; then
+            echo -e "  ${L[st_project_sender_dir]} ${CFG_SENDER_SOURCE_DIR:-${L[not_set]}}"
+        else
+            echo -e "  ${L[st_project_dir]}  ${CFG_PROJECT_DIR:-${L[not_set]}}"
+            echo -e "  ${L[st_project_dir_items]} $(_project_selected_items_preview)"
+        fi
         echo ""
-        _menu_select "1 2 3 4 5 6 0" "1" \
-            "${L[st_project_toggle_backup]}" \
-            "${L[st_project_change_name]}" \
-            "${L[st_project_change_dir]}" \
-            "${L[st_project_change_components]}" \
-            "${L[st_project_pick_files]}" \
-            "${L[st_project_remove]}" \
-            "${L[back]}"
+        if [[ "$project_mode" == "sender" ]]; then
+            _menu_select "1 2 3 4 5 0" "1" \
+                "${L[st_project_toggle_backup]}" \
+                "${L[st_project_change_name]}" \
+                "${L[st_project_change_mode]}" \
+                "${L[st_project_change_sender_dir]}" \
+                "${L[st_project_remove]}" \
+                "${L[back]}"
+        else
+            _menu_select "1 2 3 4 5 6 7 0" "1" \
+                "${L[st_project_toggle_backup]}" \
+                "${L[st_project_change_name]}" \
+                "${L[st_project_change_mode]}" \
+                "${L[st_project_change_dir]}" \
+                "${L[st_project_change_components]}" \
+                "${L[st_project_pick_files]}" \
+                "${L[st_project_remove]}" \
+                "${L[back]}"
+        fi
         choice="$MENU_CHOICE"
         case "$choice" in
             1)
@@ -5673,27 +6040,50 @@ _settings_project() {
                 fi
                 ;;
             2) read -rp "${L[st_project_enter_name]}" CFG_PROJECT_NAME; log_info "${L[st_project_name_ok]}" ;;
-            3)
-                local val; val=$(input_path "${L[st_project_enter_dir]}" true)
-                [[ -n "$val" ]] && CFG_PROJECT_DIR="$val" && log_info "${L[st_project_dir_ok]}"
-                ;;
-            4) _settings_project_components ;;
-            5)
-                if [[ -z "$CFG_PROJECT_DIR" || ! -d "$CFG_PROJECT_DIR" ]]; then
-                    log_warn "${L[bk_dir_missing]} ${CFG_PROJECT_DIR:-${L[not_set]}}"
-                    press_enter
-                    continue
+            3) _settings_project_change_mode ;;
+            4)
+                if [[ "$project_mode" == "sender" ]]; then
+                    local sender_path
+                    sender_path=$(input_path "${L[st_project_enter_sender_dir]}" true)
+                    [[ -n "$sender_path" ]] && CFG_SENDER_SOURCE_DIR="$sender_path" && log_info "${L[st_project_sender_dir_ok]}"
+                else
+                    local val; val=$(input_path "${L[st_project_enter_dir]}" true)
+                    [[ -n "$val" ]] && CFG_PROJECT_DIR="$val" && log_info "${L[st_project_dir_ok]}"
                 fi
-                _project_dir_picker "$CFG_PROJECT_DIR" || true
-                CFG_BACKUP_DIR_MODE="selected"
+                ;;
+            5)
+                if [[ "$project_mode" == "sender" ]]; then
+                    if _settings_project_delete_current; then
+                        return
+                    fi
+                else
+                    _settings_project_components
+                fi
                 ;;
             6)
-                if _settings_project_delete_current; then
-                    return
+                if [[ "$project_mode" == "sender" ]]; then
+                    log_warn "${L[invalid_input_select]}"
+                else
+                    if [[ -z "$CFG_PROJECT_DIR" || ! -d "$CFG_PROJECT_DIR" ]]; then
+                        log_warn "${L[bk_dir_missing]} ${CFG_PROJECT_DIR:-${L[not_set]}}"
+                        press_enter
+                        continue
+                    fi
+                    _project_dir_picker "$CFG_PROJECT_DIR" || true
+                    CFG_BACKUP_DIR_MODE="selected"
+                fi
+                ;;
+            7)
+                if [[ "$project_mode" != "sender" ]]; then
+                    if _settings_project_delete_current; then
+                        return
+                    fi
                 fi
                 ;;
             0) return ;;
-            *) log_warn "${L[invalid_input_select]}" ;;
+            *)
+                log_warn "${L[invalid_input_select]}"
+                ;;
         esac
         save_config "$CONFIG_FILE"
     done
@@ -5856,8 +6246,8 @@ do_remove() {
 
     # Cron
     log_step "${L[rm_cron_removing]}"
-    if crontab -l 2>/dev/null | grep -aqF "universal-backup"; then
-        crontab -l 2>/dev/null | grep -avF "universal-backup" | crontab -
+    if crontab -l 2>/dev/null | grep -aqE 'backrest|universal-backup'; then
+        crontab -l 2>/dev/null | grep -avE 'backrest|universal-backup' | crontab -
         log_info "${L[rm_cron_removed]}"
     else
         log_info "${L[rm_cron_none]}"
@@ -6035,10 +6425,12 @@ _render_projects_overview() {
 
     # Собрать данные всех строк
     local -a row_ids row_names row_db_labels row_db_colors row_upload_labels row_status_labels row_status_colors
-    local name db_type upload_methods status_label db_label upload_label project_enabled db_color status_color
+    local name db_type project_mode upload_methods status_label db_label upload_label project_enabled db_color status_color
 
     for id in "${ids[@]}"; do
         name="$(project_display_name "$id")"
+        project_mode="$(_project_cfg_value "$id" "CFG_PROJECT_MODE" "backup")"
+        project_mode="$(_normalize_project_mode "$project_mode")"
         db_type="$(_project_cfg_value "$id" "CFG_DB_TYPE" "none")"
         upload_methods="$(_project_cfg_value "$id" "CFG_UPLOAD_METHOD" "")"
         upload_methods="$(_archive_methods_csv_for_display "$upload_methods")"
@@ -6052,12 +6444,17 @@ _render_projects_overview() {
             status_color="${YELLOW}"
         fi
 
-        case "$db_type" in
-            docker)   db_label="Docker";   db_color="${CYAN}" ;;
-            external) db_label="External"; db_color="${YELLOW}" ;;
-            none)     db_label="None";     db_color="${NC}" ;;
-            *)        db_label="$db_type"; db_color="${NC}" ;;
-        esac
+        if [[ "$project_mode" == "sender" ]]; then
+            db_label="$(_project_mode_label "$project_mode")"
+            db_color="${MAGENTA}"
+        else
+            case "$db_type" in
+                docker)   db_label="Docker";   db_color="${CYAN}" ;;
+                external) db_label="External"; db_color="${YELLOW}" ;;
+                none)     db_label="None";     db_color="${NC}" ;;
+                *)        db_label="$db_type"; db_color="${NC}" ;;
+            esac
+        fi
         upload_label="$(_upload_methods_text "$upload_methods")"
 
         row_ids+=("$id")
