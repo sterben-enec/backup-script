@@ -186,9 +186,20 @@ press_enter_back() {
 
 confirm() {
     # confirm "Вопрос?" → 0=yes, 1=no
+    # Устойчиво к "хвостовым" Enter после навигации в меню.
     local msg="${1:-Продолжить?}"
-    read -rp "${msg} ${L[yes_no]}" ans
-    [[ "$ans" =~ ^[Yy]$ ]]
+    local ans line
+    while true; do
+        read -rp "${msg} ${L[yes_no]}" line
+        ans="$(printf '%s' "$line" | tr -d '[:space:]')"
+        case "$ans" in
+            [Yy]|[Yy][Ee][Ss]|[Дд]|[Дд][Aa]) return 0 ;;
+            [Nn]|[Nn][Oo]|[Нн]|[Нн][Ее][Тт]|"") return 1 ;;
+            *)
+                log_warn "${L[invalid_input_select]}"
+                ;;
+        esac
+    done
 }
 
 MENU_CHOICE=""
@@ -2565,6 +2576,46 @@ load_project_config() {
     local project_file
     project_file="$(_project_file_path "$project_id")"
     [[ -f "$project_file" ]] || return 1
+
+    # Сбрасываем project-scoped значения перед загрузкой, чтобы избежать
+    # "протекания" параметров (например S3 Prefix / GD Folder) от другого проекта.
+    CFG_UPLOAD_METHOD=""
+    CFG_USE_GLOBAL_UPLOAD_METHOD="false"
+
+    CFG_S3_PREFIX=""
+    CFG_STORAGE_KEEP_WEEKLY="true"
+    CFG_STORAGE_KEEP_MONTHLY="true"
+    CFG_GD_FOLDER_ID=""
+
+    CFG_DB_TYPE="none"
+    CFG_DB_ENGINE="postgres"
+    CFG_DB_CONTAINER=""
+    CFG_DB_USER="postgres"
+    CFG_DB_NAME="postgres"
+    CFG_DB_PASS=""
+    CFG_DB_HOST=""
+    CFG_DB_PORT="5432"
+    CFG_DB_SSL="prefer"
+    CFG_DB_PGVER="17"
+
+    CFG_PROJECT_NAME=""
+    CFG_PROJECT_MODE="backup"
+    CFG_PROJECT_DIR=""
+    CFG_SENDER_SOURCE_DIR=""
+    CFG_BACKUP_DIR="$DEFAULT_BACKUP_DIR"
+    CFG_SCHEDULE_HOURLY_ENABLED="true"
+    CFG_SCHEDULE_DAILY_ENABLED="false"
+    CFG_RETENTION_HOURLY_PERIOD="day"
+    CFG_RETENTION_DAILY_PERIOD="month"
+    CFG_RETENTION_DAILY_HOUR="3"
+    CFG_RETENTION_DAYS="30"
+    CFG_TELEGRAM_SEND_MODE="weekly"
+    CFG_PROJECT_ENABLED="true"
+    CFG_BACKUP_DB_ENABLED="true"
+    CFG_BACKUP_DIR_ENABLED="true"
+    CFG_BACKUP_DIR_MODE="full"
+    CFG_BACKUP_DIR_ITEMS=""
+
     _assert_safe_source "$project_file" || return 1
     # shellcheck source=/dev/null
     source "$project_file"
