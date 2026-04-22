@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# VERSION=1.3.0
+# VERSION=1.4.0
 #
 # backrest — Backup & Restore
 # Поддерживает: PostgreSQL, MySQL/MariaDB, MongoDB (Docker или external)
