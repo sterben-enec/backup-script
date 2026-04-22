@@ -6085,7 +6085,6 @@ _settings_project() {
         local project_mode
         local delivery_methods_label
         local delivery_methods_target
-        local show_delivery_paths
         project_mode="$(_normalize_project_mode "${CFG_PROJECT_MODE:-backup}")"
         if [[ "${CFG_USE_GLOBAL_UPLOAD_METHOD:-false}" == "true" ]]; then
             delivery_methods_label="${L[st_project_delivery_settings]} (${L[ul_scope_project_global]})"
@@ -6093,10 +6092,6 @@ _settings_project() {
         else
             delivery_methods_label="${L[st_project_delivery_settings]} (${L[ul_scope_project_local]})"
             delivery_methods_target="project"
-        fi
-        show_delivery_paths="true"
-        if [[ "$project_mode" == "sender" && "${CFG_USE_GLOBAL_UPLOAD_METHOD:-false}" == "true" ]]; then
-            show_delivery_paths="false"
         fi
         _section_header "[P]" "${L[st_project_title]}"
         echo -e "  ID: ${CYAN}${CFG_ACTIVE_PROJECT:-${L[not_set]}}${NC}"
@@ -6109,10 +6104,8 @@ _settings_project() {
         echo -e "  ${L[st_project_mode]} ${BRIGHT_YELLOW}$(_project_mode_label "$project_mode")${NC}"
         echo -e "  ${L[st_project_delivery_source]} ${BRIGHT_YELLOW}$(_delivery_scope_label "${CFG_USE_GLOBAL_UPLOAD_METHOD:-false}")${NC}"
         echo -e "  ${L[ul_current]} ${BRIGHT_YELLOW}$(_upload_methods_text "$(_effective_upload_methods)")${NC}"
-        if [[ "$show_delivery_paths" == "true" ]]; then
-            echo -e "  ${L[st_s3_prefix]} ${BRIGHT_YELLOW}${CFG_S3_PREFIX:-${L[not_set]}}${NC}"
-            echo -e "  ${L[st_gd_folder]} ${BRIGHT_YELLOW}${CFG_GD_FOLDER_ID:-${L[not_set]}}${NC}"
-        fi
+        echo -e "  ${L[st_s3_prefix]} ${BRIGHT_YELLOW}${CFG_S3_PREFIX:-${L[not_set]}}${NC}"
+        echo -e "  ${L[st_gd_folder]} ${BRIGHT_YELLOW}${CFG_GD_FOLDER_ID:-${L[not_set]}}${NC}"
         if [[ "$project_mode" == "sender" ]]; then
             echo -e "  ${L[st_project_sender_dir]} ${CFG_SENDER_SOURCE_DIR:-${L[not_set]}}"
         else
@@ -6121,28 +6114,16 @@ _settings_project() {
         fi
         echo ""
         if [[ "$project_mode" == "sender" ]]; then
-            if [[ "$show_delivery_paths" == "true" ]]; then
-                _menu_select "1 2 3 4 5 6 7 8 0" "1" \
-                    "${L[st_project_toggle_backup]}" \
-                    "${L[st_project_change_name]}" \
-                    "${L[st_project_change_mode]}" \
-                    "${L[st_project_change_sender_dir]}" \
-                    "${L[st_project_change_delivery_scope]}" \
-                    "${delivery_methods_label}" \
-                    "${L[st_project_delivery_paths]}" \
-                    "${L[st_project_remove]}" \
-                    "${L[back]}"
-            else
-                _menu_select "1 2 3 4 5 6 7 0" "1" \
-                    "${L[st_project_toggle_backup]}" \
-                    "${L[st_project_change_name]}" \
-                    "${L[st_project_change_mode]}" \
-                    "${L[st_project_change_sender_dir]}" \
-                    "${L[st_project_change_delivery_scope]}" \
-                    "${delivery_methods_label}" \
-                    "${L[st_project_remove]}" \
-                    "${L[back]}"
-            fi
+            _menu_select "1 2 3 4 5 6 7 8 0" "1" \
+                "${L[st_project_toggle_backup]}" \
+                "${L[st_project_change_name]}" \
+                "${L[st_project_change_mode]}" \
+                "${L[st_project_change_sender_dir]}" \
+                "${L[st_project_change_delivery_scope]}" \
+                "${delivery_methods_label}" \
+                "${L[st_project_delivery_paths]}" \
+                "${L[st_project_remove]}" \
+                "${L[back]}"
         else
             _menu_select "1 2 3 4 5 6 7 8 9 10 0" "1" \
                 "${L[st_project_toggle_backup]}" \
@@ -6202,20 +6183,13 @@ _settings_project() {
                 ;;
             7)
                 if [[ "$project_mode" == "sender" ]]; then
-                    if [[ "$show_delivery_paths" == "true" ]]; then
-                        _settings_project_delivery_paths
-                    else
-                        if _settings_project_delete_current; then
-                            return
-                        fi
-                    fi
+                    _settings_project_delivery_paths
                 else
                     _settings_project_change_delivery_scope
                 fi
                 ;;
             8)
                 if [[ "$project_mode" == "sender" ]]; then
-                    [[ "$show_delivery_paths" != "true" ]] && continue
                     if _settings_project_delete_current; then
                         return
                     fi
